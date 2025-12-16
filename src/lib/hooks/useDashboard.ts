@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { queryKeys } from './queryKeys'
 
 interface DashboardStats {
   totalContainers: number
@@ -22,7 +23,7 @@ async function fetchDashboardStats(): Promise<DashboardStats> {
 
 export function useDashboard() {
   return useQuery({
-    queryKey: ['dashboard', 'stats'],
+    queryKey: queryKeys.dashboard.stats(),
     queryFn: fetchDashboardStats,
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 30 * 1000, // Auto-refetch every 30 seconds
