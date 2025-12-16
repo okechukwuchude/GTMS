@@ -175,6 +175,9 @@ export default function ContainerRegistrationForm({
                   <FormControl>
                     <Input placeholder="BOL-2024-001" {...field} />
                   </FormControl>
+                  <FormDescription>
+                    Unique document identifier for this shipment
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -189,6 +192,9 @@ export default function ContainerRegistrationForm({
                   <FormControl>
                     <Input placeholder="SEAL123456" {...field} />
                   </FormControl>
+                  <FormDescription>
+                    Security seal identifier (optional)
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -255,7 +261,9 @@ export default function ContainerRegistrationForm({
               name="shipper_address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Shipper Address</FormLabel>
+                  <FormLabel>
+                    Shipper Address ({field.value?.length || 0} characters)
+                  </FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="123 Main Street, City, State, ZIP"
@@ -263,6 +271,9 @@ export default function ContainerRegistrationForm({
                       {...field}
                     />
                   </FormControl>
+                  <FormDescription>
+                    Complete address of the shipping party
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -317,7 +328,9 @@ export default function ContainerRegistrationForm({
               name="consignee_address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Consignee Address</FormLabel>
+                  <FormLabel>
+                    Consignee Address ({field.value?.length || 0} characters)
+                  </FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="456 Harbor Road, City, State, ZIP"
@@ -325,6 +338,9 @@ export default function ContainerRegistrationForm({
                       {...field}
                     />
                   </FormControl>
+                  <FormDescription>
+                    Complete address of the receiving party
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -363,7 +379,9 @@ export default function ContainerRegistrationForm({
               name="cargo_description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cargo Description *</FormLabel>
+                  <FormLabel>
+                    Cargo Description * ({field.value?.length || 0} characters)
+                  </FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Describe the cargo contents..."
@@ -371,6 +389,9 @@ export default function ContainerRegistrationForm({
                       {...field}
                     />
                   </FormControl>
+                  <FormDescription>
+                    Provide detailed information about the cargo
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -386,6 +407,7 @@ export default function ContainerRegistrationForm({
                     <FormControl>
                       <Input placeholder="Electronics, Textiles, etc." {...field} />
                     </FormControl>
+                    <FormDescription>General category of goods</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -426,6 +448,7 @@ export default function ContainerRegistrationForm({
                         }
                       />
                     </FormControl>
+                    <FormDescription>Number of units</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -440,6 +463,7 @@ export default function ContainerRegistrationForm({
                     <FormControl>
                       <Input placeholder="Pallets, Boxes, Units" {...field} />
                     </FormControl>
+                    <FormDescription>Unit of measurement</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -465,6 +489,7 @@ export default function ContainerRegistrationForm({
                         }
                       />
                     </FormControl>
+                    <FormDescription>Total weight in kilograms</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -488,6 +513,7 @@ export default function ContainerRegistrationForm({
                         }
                       />
                     </FormControl>
+                    <FormDescription>Volume in cubic meters</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -511,6 +537,7 @@ export default function ContainerRegistrationForm({
                         }
                       />
                     </FormControl>
+                    <FormDescription>Declared value in US dollars</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -653,6 +680,9 @@ export default function ContainerRegistrationForm({
                   <FormControl>
                     <Input type="datetime-local" {...field} />
                   </FormControl>
+                  <FormDescription>
+                    Expected arrival date and time at destination
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

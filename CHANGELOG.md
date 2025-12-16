@@ -21,6 +21,41 @@ All notable changes to the GTMS (Global Trade Monitoring System) project will be
 
 ---
 
+## [2025-12-16] - Task #41: Add Form Validation Feedback
+
+### Type: Changed
+- **Description**: Enhanced ContainerRegistrationForm with comprehensive validation feedback including character counters and helpful descriptions for all fields
+- **Files Modified**:
+  - `/src/components/containers/ContainerRegistrationForm.tsx` (modified)
+- **Breaking Changes**: None
+- **Notes**:
+  - **Character Counters**: Added real-time character counting to textarea fields:
+    - cargo_description: Shows character count in label
+    - shipper_address: Shows character count in label
+    - consignee_address: Shows character count in label
+  - **Helper Text (FormDescription)**: Added contextual help for fields:
+    - container_number: Already had "4 letters + 7 digits (ISO 6346)" ✓
+    - bill_of_lading: "Unique document identifier for this shipment"
+    - seal_number: "Security seal identifier (optional)"
+    - shipper_address: "Complete address of the shipping party"
+    - consignee_address: "Complete address of the receiving party"
+    - cargo_description: "Provide detailed information about the cargo"
+    - commodity_type: "General category of goods"
+    - hs_code: Already had "Harmonized System Code" ✓
+    - quantity: "Number of units"
+    - quantity_unit: "Unit of measurement"
+    - weight_kg: "Total weight in kilograms"
+    - volume_cbm: "Volume in cubic meters"
+    - value_usd: "Declared value in US dollars"
+    - eta: "Expected arrival date and time at destination"
+    - temperature_celsius: Already had "Required for refrigerated containers" ✓
+    - is_hazardous: Already had "Check if cargo contains dangerous goods" ✓
+  - **Impact**: Significantly improved form UX with better guidance and real-time feedback
+  - All validation errors already display properly via React Hook Form's FormMessage component
+  - Form now provides clear expectations for each field to reduce user errors
+
+---
+
 ## [2025-12-16] - Bug Fix: Middleware Blocking API Routes
 
 ### Type: Fixed
