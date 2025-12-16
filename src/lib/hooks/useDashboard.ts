@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from './queryKeys'
+import { handleApiError, logError } from '@/lib/utils/error-handler'
 
 interface DashboardStats {
   totalContainers: number
@@ -11,14 +12,18 @@ interface DashboardStats {
 }
 
 async function fetchDashboardStats(): Promise<DashboardStats> {
-  const response = await fetch('/api/dashboard/stats')
+  try {
+    const response = await fetch('/api/dashboard/stats')
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to fetch dashboard stats')
+    if (!response.ok) {
+      await handleApiError(response)
+    }
+
+    return response.json()
+  } catch (error) {
+    logError(error, 'fetchDashboardStats')
+    throw error
   }
-
-  return response.json()
 }
 
 export function useDashboard() {

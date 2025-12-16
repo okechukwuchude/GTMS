@@ -3,16 +3,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from './queryKeys'
 import { Port } from '@/types/container.types'
+import { handleApiError, logError } from '@/lib/utils/error-handler'
 
 async function fetchPorts(): Promise<Port[]> {
-  const response = await fetch('/api/ports')
+  try {
+    const response = await fetch('/api/ports')
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to fetch ports')
+    if (!response.ok) {
+      await handleApiError(response)
+    }
+
+    return response.json()
+  } catch (error) {
+    logError(error, 'fetchPorts')
+    throw error
   }
-
-  return response.json()
 }
 
 /**

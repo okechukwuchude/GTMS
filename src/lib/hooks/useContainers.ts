@@ -14,6 +14,7 @@ import {
   ContainerUpdateInput,
 } from '@/lib/validations/container.validations'
 import { toast } from 'sonner'
+import { handleApiError, getErrorMessage, logError } from '@/lib/utils/error-handler'
 
 /**
  * Fetch containers list with filters and pagination
@@ -21,43 +22,51 @@ import { toast } from 'sonner'
 async function fetchContainers(
   filters: ContainerFilters
 ): Promise<ContainerListResponse> {
-  const params = new URLSearchParams()
+  try {
+    const params = new URLSearchParams()
 
-  if (filters.page) params.append('page', filters.page.toString())
-  if (filters.limit) params.append('limit', filters.limit.toString())
-  if (filters.search) params.append('search', filters.search)
-  if (filters.statuses && filters.statuses.length > 0) {
-    params.append('status', filters.statuses.join(','))
+    if (filters.page) params.append('page', filters.page.toString())
+    if (filters.limit) params.append('limit', filters.limit.toString())
+    if (filters.search) params.append('search', filters.search)
+    if (filters.statuses && filters.statuses.length > 0) {
+      params.append('status', filters.statuses.join(','))
+    }
+    if (filters.originPortId) params.append('origin_port_id', filters.originPortId)
+    if (filters.destinationPortId) {
+      params.append('destination_port_id', filters.destinationPortId)
+    }
+    if (filters.dateFrom) params.append('date_from', filters.dateFrom)
+    if (filters.dateTo) params.append('date_to', filters.dateTo)
+
+    const response = await fetch(`/api/containers?${params.toString()}`)
+
+    if (!response.ok) {
+      await handleApiError(response)
+    }
+
+    return response.json()
+  } catch (error) {
+    logError(error, 'fetchContainers')
+    throw error
   }
-  if (filters.originPortId) params.append('origin_port_id', filters.originPortId)
-  if (filters.destinationPortId) {
-    params.append('destination_port_id', filters.destinationPortId)
-  }
-  if (filters.dateFrom) params.append('date_from', filters.dateFrom)
-  if (filters.dateTo) params.append('date_to', filters.dateTo)
-
-  const response = await fetch(`/api/containers?${params.toString()}`)
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to fetch containers')
-  }
-
-  return response.json()
 }
 
 /**
  * Fetch a single container by ID
  */
 async function fetchContainer(id: string): Promise<ContainerWithRelations> {
-  const response = await fetch(`/api/containers/${id}`)
+  try {
+    const response = await fetch(`/api/containers/${id}`)
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to fetch container')
+    if (!response.ok) {
+      await handleApiError(response)
+    }
+
+    return response.json()
+  } catch (error) {
+    logError(error, 'fetchContainer')
+    throw error
   }
-
-  return response.json()
 }
 
 /**
@@ -66,14 +75,18 @@ async function fetchContainer(id: string): Promise<ContainerWithRelations> {
 async function fetchContainerHistory(
   id: string
 ): Promise<ContainerStatusHistoryWithUser[]> {
-  const response = await fetch(`/api/containers/${id}/history`)
+  try {
+    const response = await fetch(`/api/containers/${id}/history`)
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to fetch container history')
+    if (!response.ok) {
+      await handleApiError(response)
+    }
+
+    return response.json()
+  } catch (error) {
+    logError(error, 'fetchContainerHistory')
+    throw error
   }
-
-  return response.json()
 }
 
 /**
@@ -82,20 +95,24 @@ async function fetchContainerHistory(
 async function createContainer(
   data: ContainerCreateInput
 ): Promise<ContainerWithRelations> {
-  const response = await fetch('/api/containers', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  })
+  try {
+    const response = await fetch('/api/containers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to create container')
+    if (!response.ok) {
+      await handleApiError(response)
+    }
+
+    return response.json()
+  } catch (error) {
+    logError(error, 'createContainer')
+    throw error
   }
-
-  return response.json()
 }
 
 /**
@@ -108,33 +125,41 @@ async function updateContainer({
   id: string
   data: ContainerUpdateInput
 }): Promise<ContainerWithRelations> {
-  const response = await fetch(`/api/containers/${id}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  })
+  try {
+    const response = await fetch(`/api/containers/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to update container')
+    if (!response.ok) {
+      await handleApiError(response)
+    }
+
+    return response.json()
+  } catch (error) {
+    logError(error, 'updateContainer')
+    throw error
   }
-
-  return response.json()
 }
 
 /**
  * Delete a container
  */
 async function deleteContainer(id: string): Promise<void> {
-  const response = await fetch(`/api/containers/${id}`, {
-    method: 'DELETE',
-  })
+  try {
+    const response = await fetch(`/api/containers/${id}`, {
+      method: 'DELETE',
+    })
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to delete container')
+    if (!response.ok) {
+      await handleApiError(response)
+    }
+  } catch (error) {
+    logError(error, 'deleteContainer')
+    throw error
   }
 }
 
@@ -193,8 +218,8 @@ export function useCreateContainer() {
       })
       toast.success('Container created successfully')
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create container')
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error))
     },
   })
 }
@@ -228,8 +253,8 @@ export function useUpdateContainer() {
       }
       toast.success('Container updated successfully')
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update container')
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error))
     },
   })
 }
@@ -257,8 +282,8 @@ export function useDeleteContainer() {
       })
       toast.success('Container deleted successfully')
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to delete container')
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error))
     },
   })
 }
