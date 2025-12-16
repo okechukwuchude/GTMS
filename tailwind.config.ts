@@ -50,6 +50,13 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+        status: {
+          success: 'hsl(var(--status-success))',
+          warning: 'hsl(var(--status-warning))',
+          danger: 'hsl(var(--status-danger))',
+          info: 'hsl(var(--status-info))',
+          inactive: 'hsl(var(--status-inactive))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',
