@@ -8,9 +8,9 @@
 ## Current Progress
 
 - **Phase**: Authentication Phase
-- **Current Task**: #17 - Create Type Definitions for Auth
-- **Last Successful Task**: #16 - Generate TypeScript Types from Supabase
-- **Next Task**: #18 - Create Zod Validation Schemas for Auth
+- **Current Task**: #18 - Create Zod Validation Schemas for Auth
+- **Last Successful Task**: #17 - Create Type Definitions for Auth
+- **Next Task**: #19 - Create Auth API Route - Register
 
 ---
 
@@ -152,6 +152,17 @@
   - Added supabase:gen-types script to package.json
   - Verified TypeScript compilation with no errors
   - Ready for type-safe database queries
+
+- Task #17: Create Type Definitions for Auth - Completed December 16, 2025
+  - Created src/types/auth.types.ts with comprehensive auth types
+  - Defined RegisterData, LoginCredentials interfaces
+  - Defined AuthUser combining Supabase user and profile
+  - Defined AuthSession and AuthState for state management
+  - Added ProfileUpdateData, PasswordResetRequest types
+  - Included type guards (isPublicUser, isStaffUser)
+  - Added helper function toAuthUser for data conversion
+  - Verified TypeScript compilation with no errors
+  - Ready for authentication implementation
 
 ---
 
@@ -313,4 +324,4 @@ pnpm supabase:gen-types
 
 ---
 
-**Next Steps**: Begin Task #17 - Create Type Definitions for Auth
+**Next Steps**: Begin Task #18 - Create Zod Validation Schemas for Auth
