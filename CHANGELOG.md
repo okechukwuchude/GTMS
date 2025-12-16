@@ -21,6 +21,23 @@ All notable changes to the GTMS (Global Trade Monitoring System) project will be
 
 ---
 
+## [2025-12-16] - Bug Fix: Middleware Blocking API Routes
+
+### Type: Fixed
+- **Description**: Fixed critical issue where middleware was intercepting API routes and causing login/authentication to fail with JSON parse errors
+- **Files Modified**:
+  - `/src/middleware.ts` (modified)
+- **Breaking Changes**: None
+- **Notes**:
+  - **Problem**: Middleware matcher was running on `/api/*` routes, causing the login API to return HTML redirects instead of JSON responses
+  - **Error Message**: "Unexpected token '<', "<!DOCTYPE "... is not valid JSON"
+  - **Root Cause**: The matcher pattern didn't exclude `api` from the negative lookahead, so it was matching all API routes
+  - **Solution**: Added `api` to the exclusion pattern: `'/((?!api|_next/static|_next/image|...'`
+  - **Impact**: All API routes (login, register, containers, etc.) now work correctly without middleware interference
+  - This was blocking user login and all API functionality
+
+---
+
 ## [2025-12-16] - Task #37: Update Middleware for User Type Routing
 
 ### Type: Added
