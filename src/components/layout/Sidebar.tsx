@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Package, Settings, X } from 'lucide-react'
+import { Home, Package, Settings, X, ClipboardCheck, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { cn } from '@/lib/utils'
@@ -11,16 +11,27 @@ interface SidebarProps {
   onClose: () => void
 }
 
-const navigation = [
+const publicNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Container Tracking', href: '/dashboard/containers', icon: Package },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+]
+
+const staffNavigation = [
+  { name: 'Dashboard', href: '/admin/dashboard', icon: Home },
+  { name: 'Inspections', href: '/admin/inspections', icon: ClipboardCheck },
+  { name: 'Containers', href: '/admin/containers', icon: Package },
+  { name: 'Users', href: '/admin/users', icon: Users },
+  { name: 'Settings', href: '/admin/settings', icon: Settings },
 ]
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuth()
+
+  // Determine navigation based on user type
+  const navigation = user?.user_type === 'staff' ? staffNavigation : publicNavigation
 
   const handleLogout = async () => {
     await logout()

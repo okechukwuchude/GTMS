@@ -58,19 +58,51 @@ export async function middleware(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // Redirect to login if accessing protected route without session
-  if (!session && request.nextUrl.pathname.startsWith('/dashboard')) {
-    const redirectUrl = new URL('/login', request.url)
-    return NextResponse.redirect(redirectUrl)
+  const path = request.nextUrl.pathname
+
+  // Public routes that don't require authentication
+  const publicRoutes = ['/', '/login', '/register']
+  const isPublicRoute = publicRoutes.includes(path)
+
+  // Allow access to public routes
+  if (isPublicRoute && !session) {
+    return response
   }
 
-  // Redirect to dashboard if accessing auth pages with session
-  if (
-    session &&
-    (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')
-  ) {
-    const redirectUrl = new URL('/dashboard', request.url)
-    return NextResponse.redirect(redirectUrl)
+  // Redirect to login if not authenticated
+  if (!session) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Get user profile to determine user type
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('user_type')
+    .eq('id', session.user.id)
+    .single()
+
+  const userType = profile?.user_type
+
+  // Redirect authenticated users from auth pages to appropriate dashboard
+  if (isPublicRoute && session) {
+    if (userType === 'staff') {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+    }
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Staff-only routes
+  if (path.startsWith('/admin')) {
+    if (userType !== 'staff') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+
+  // Public user routes (prevent staff from accessing)
+  if (path.startsWith('/dashboard') || path.startsWith('/containers')) {
+    if (userType === 'staff') {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+    }
   }
 
   return response
