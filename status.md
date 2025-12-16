@@ -8,9 +8,9 @@
 ## Current Progress
 
 - **Phase**: Authentication Phase
-- **Current Task**: #20 - Create Auth API Route - Login
-- **Last Successful Task**: #19 - Create Auth API Route - Register
-- **Next Task**: #21 - Create Auth API Route - Logout
+- **Current Task**: #21 - Create Auth API Route - Logout
+- **Last Successful Task**: #20 - Create Auth API Route - Login
+- **Next Task**: #22 - Create useAuth Hook
 
 ---
 
@@ -189,6 +189,19 @@
   - Verified TypeScript compilation with no errors
   - Ready for frontend integration
 
+- Task #20: Create Auth API Route - Login - Completed December 16, 2025
+  - Created src/app/api/auth/login/route.ts
+  - Implemented POST endpoint for user login
+  - Validates credentials using loginSchema
+  - Authenticates with Supabase signInWithPassword()
+  - Fetches user profile from profiles table
+  - Updates last_login_at timestamp on successful login
+  - Returns user data and session tokens
+  - Comprehensive error handling (invalid credentials, unverified email, server errors)
+  - Returns appropriate HTTP status codes (200, 401, 403, 500)
+  - Verified TypeScript compilation with no errors
+  - Ready for frontend integration
+
 ---
 
 ### 🔄 In Progress
@@ -349,4 +362,4 @@ pnpm supabase:gen-types
 
 ---
 
-**Next Steps**: Begin Task #20 - Create Auth API Route - Login
+**Next Steps**: Begin Task #21 - Create Auth API Route - Logout
