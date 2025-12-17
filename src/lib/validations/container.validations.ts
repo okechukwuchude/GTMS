@@ -116,6 +116,11 @@ export const containerCreateSchema = z
       .min(-50, 'Temperature must be above -50°C')
       .max(50, 'Temperature must be below 50°C')
       .optional(),
+
+    // OCR Metadata (optional, populated when created from OCR)
+    ocr_processed: z.boolean().optional(),
+    ocr_confidence: z.number().min(0).max(100).optional(),
+    ocr_data: z.any().optional(), // JSON/JSONB field for full OCR result
   })
   .refine(
     (data) => {

@@ -154,7 +154,6 @@ export async function POST(request: NextRequest) {
       created_by: userId,
       status: 'registered' as const,
       registration_date: new Date().toISOString(),
-      risk_level: 'low' as const, // Default risk level
     }
 
     const { data: container, error: createError } = await supabase

@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
   try {
+    console.log('[OCR] Starting OCR processing...')
+
     // Authenticate user
     const supabase = await createClient()
     const {
@@ -32,15 +34,20 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      console.log('[OCR] Authentication failed:', authError)
       return NextResponse.json(
         { error: 'Unauthorized - Please sign in' },
         { status: 401 }
       )
     }
 
+    console.log('[OCR] User authenticated:', user.id)
+
     // Parse request body
     const body = await request.json()
     const { documentId } = body
+
+    console.log('[OCR] Document ID:', documentId)
 
     if (!documentId) {
       return NextResponse.json(
@@ -50,11 +57,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Retrieve document from storage
+    console.log('[OCR] Retrieving document from storage...')
     let documentData
     try {
       documentData = await getDocument(documentId)
+      console.log('[OCR] Document retrieved, size:', documentData.buffer.length, 'bytes')
     } catch (error) {
-      console.error('Document retrieval error:', error)
+      console.error('[OCR] Document retrieval error:', error)
       return NextResponse.json(
         { error: 'Document not found or could not be retrieved' },
         { status: 404 }
@@ -62,14 +71,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Call Google Cloud Vision API to extract text
+    console.log('[OCR] Calling Vision API...')
     let visionResponse
     try {
       visionResponse = await detectTextFromBuffer(
         documentData.buffer,
         documentData.metadata.mimeType
       )
+      console.log('[OCR] Vision API response received, text length:', visionResponse.fullText.length)
     } catch (error) {
-      console.error('Vision API error:', error)
+      console.error('[OCR] Vision API error:', error)
 
       // Clean up document after failed processing
       await deleteDocument(documentId).catch(() => {})

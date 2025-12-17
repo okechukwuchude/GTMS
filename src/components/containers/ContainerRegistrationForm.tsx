@@ -28,11 +28,14 @@ import { containerCreateSchema, ContainerCreateInput } from '@/lib/validations/c
 import { usePorts } from '@/lib/hooks/usePorts'
 import { useCreateContainer, useUpdateContainer } from '@/lib/hooks/useContainers'
 import { Container } from '@/types/container.types'
+import { OCRResult } from '@/lib/ocr/types'
+import { FieldConfidenceIndicator } from '@/components/ocr/FieldConfidenceIndicator'
 import { Loader2 } from 'lucide-react'
 
 interface ContainerRegistrationFormProps {
   mode: 'create' | 'edit'
   container?: Container
+  ocrData?: OCRResult
   onSuccess?: () => void
   onCancel?: () => void
 }
@@ -63,6 +66,7 @@ const hazardClasses = [
 export default function ContainerRegistrationForm({
   mode,
   container,
+  ocrData,
   onSuccess,
   onCancel,
 }: ContainerRegistrationFormProps) {
@@ -70,34 +74,67 @@ export default function ContainerRegistrationForm({
   const createContainer = useCreateContainer()
   const updateContainer = useUpdateContainer()
 
+  // Helper function to get OCR field value
+  const getOCRValue = (fieldName: string) => {
+    if (!ocrData?.fields) return undefined
+    const field = ocrData.fields[fieldName as keyof typeof ocrData.fields]
+    return field?.value
+  }
+
+  // Helper function to get OCR field confidence
+  const getOCRConfidence = (fieldName: string) => {
+    if (!ocrData?.fields) return undefined
+    const field = ocrData.fields[fieldName as keyof typeof ocrData.fields]
+    return field?.confidence
+  }
+
+  // Helper function to render field label with confidence indicator
+  const renderFieldLabel = (label: string, fieldName: string) => {
+    const confidence = getOCRConfidence(fieldName)
+    const hasOCRData = confidence !== undefined
+
+    return (
+      <div className="flex items-center">
+        <span>{label}</span>
+        {hasOCRData && (
+          <FieldConfidenceIndicator
+            confidence={confidence}
+            fieldName={label}
+            isOCRExtracted={true}
+          />
+        )}
+      </div>
+    )
+  }
+
   const form = useForm<any>({
     resolver: zodResolver(containerCreateSchema) as any,
     defaultValues: {
-      container_number: container?.container_number || '',
-      bill_of_lading: container?.bill_of_lading || '',
-      seal_number: container?.seal_number || '',
-      container_type: container?.container_type || '20FT',
-      shipper_name: container?.shipper_name || '',
-      shipper_address: container?.shipper_address || '',
-      shipper_country: container?.shipper_country || '',
-      consignee_name: container?.consignee_name || '',
-      consignee_address: container?.consignee_address || '',
-      consignee_country: container?.consignee_country || '',
-      cargo_description: container?.cargo_description || '',
-      commodity_type: container?.commodity_type || '',
-      hs_code: container?.hs_code || '',
-      quantity: container?.quantity || undefined,
-      quantity_unit: container?.quantity_unit || '',
-      weight_kg: container?.weight_kg || undefined,
-      volume_cbm: container?.volume_cbm || undefined,
-      value_usd: container?.value_usd || undefined,
-      currency: container?.currency || 'USD',
-      is_hazardous: container?.is_hazardous || false,
-      hazard_class: (container?.hazard_class as any) || undefined,
-      origin_port_id: container?.origin_port_id || undefined,
-      destination_port_id: container?.destination_port_id || undefined,
-      eta: container?.eta || undefined,
-      temperature_celsius: container?.temperature_celsius || undefined,
+      container_number: container?.container_number || getOCRValue('container_number') || '',
+      bill_of_lading: container?.bill_of_lading || getOCRValue('bill_of_lading') || '',
+      seal_number: container?.seal_number || getOCRValue('seal_number') || '',
+      container_type: container?.container_type || getOCRValue('container_type') || '20FT',
+      shipper_name: container?.shipper_name || getOCRValue('shipper_name') || '',
+      shipper_address: container?.shipper_address || getOCRValue('shipper_address') || '',
+      shipper_country: container?.shipper_country || getOCRValue('shipper_country') || '',
+      consignee_name: container?.consignee_name || getOCRValue('consignee_name') || '',
+      consignee_address: container?.consignee_address || getOCRValue('consignee_address') || '',
+      consignee_country: container?.consignee_country || getOCRValue('consignee_country') || '',
+      cargo_description: container?.cargo_description || getOCRValue('cargo_description') || '',
+      commodity_type: container?.commodity_type || getOCRValue('commodity_type') || '',
+      hs_code: container?.hs_code || getOCRValue('hs_code') || '',
+      quantity: container?.quantity || getOCRValue('quantity') || undefined,
+      quantity_unit: container?.quantity_unit || getOCRValue('quantity_unit') || '',
+      weight_kg: container?.weight_kg || getOCRValue('weight_kg') || undefined,
+      volume_cbm: container?.volume_cbm || getOCRValue('volume_cbm') || undefined,
+      value_usd: container?.value_usd || getOCRValue('value_usd') || undefined,
+      currency: container?.currency || getOCRValue('currency') || 'USD',
+      is_hazardous: container?.is_hazardous || getOCRValue('is_hazardous') || false,
+      hazard_class: (container?.hazard_class as any) || getOCRValue('hazard_class') || undefined,
+      origin_port_id: container?.origin_port_id || getOCRValue('origin_port_id') || undefined,
+      destination_port_id: container?.destination_port_id || getOCRValue('destination_port_id') || undefined,
+      eta: container?.eta || getOCRValue('eta') || undefined,
+      temperature_celsius: container?.temperature_celsius || getOCRValue('temperature_celsius') || undefined,
     },
   })
 
@@ -120,12 +157,22 @@ export default function ContainerRegistrationForm({
   }, [containerType, form])
 
   async function onSubmit(data: ContainerCreateInput) {
+    // Include OCR metadata if container was created from OCR
+    const submissionData = {
+      ...data,
+      ...(ocrData && {
+        ocr_processed: true,
+        ocr_confidence: ocrData.overallConfidence,
+        ocr_data: ocrData,
+      }),
+    }
+
     if (mode === 'create') {
-      await createContainer.mutateAsync(data)
+      await createContainer.mutateAsync(submissionData)
     } else if (container) {
       await updateContainer.mutateAsync({
         id: container.id,
-        data,
+        data: submissionData,
       })
     }
 

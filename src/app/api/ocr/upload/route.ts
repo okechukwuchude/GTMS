@@ -5,64 +5,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import formidable from 'formidable'
-import { Readable } from 'stream'
 import { validateFile } from '@/lib/utils/file-validation'
 import { saveDocument } from '@/lib/utils/document-storage'
 import { createClient } from '@/lib/supabase/server'
 
-// Disable Next.js body parsing to handle multipart/form-data manually
+// Disable Next.js body parsing for file uploads
 export const dynamic = 'force-dynamic'
-
-/**
- * Convert NextRequest to Node.js IncomingMessage for formidable
- * Formidable expects Node.js streams, but Next.js uses Web API Request
- */
-async function requestToReadable(request: NextRequest): Promise<Readable> {
-  const reader = request.body?.getReader()
-  if (!reader) {
-    throw new Error('Request body is empty')
-  }
-
-  const readable = new Readable({
-    async read() {
-      const { done, value } = await reader.read()
-      if (done) {
-        this.push(null)
-      } else {
-        this.push(Buffer.from(value))
-      }
-    },
-  })
-
-  return readable
-}
-
-/**
- * Parse multipart form data using formidable
- */
-async function parseForm(request: NextRequest): Promise<{
-  fields: formidable.Fields
-  files: formidable.Files
-}> {
-  const form = formidable({
-    maxFileSize: parseInt(process.env.MAX_FILE_SIZE_MB || '10') * 1024 * 1024,
-    allowEmptyFiles: false,
-    multiples: false, // Only allow single file upload
-  })
-
-  const readable = await requestToReadable(request)
-
-  return new Promise((resolve, reject) => {
-    form.parse(readable as any, (err, fields, files) => {
-      if (err) {
-        reject(err)
-      } else {
-        resolve({ fields, files })
-      }
-    })
-  })
-}
 
 /**
  * POST /api/ocr/upload
@@ -70,6 +18,8 @@ async function parseForm(request: NextRequest): Promise<{
  */
 export async function POST(request: NextRequest) {
   try {
+    console.log('[Upload] Starting file upload...')
+
     // Authenticate user
     const supabase = await createClient()
     const {
@@ -78,77 +28,61 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      console.log('[Upload] Authentication failed')
       return NextResponse.json(
         { error: 'Unauthorized - Please sign in' },
         { status: 401 }
       )
     }
 
-    // Parse multipart form data
-    let fields: formidable.Fields
-    let files: formidable.Files
+    console.log('[Upload] User authenticated:', user.id)
 
-    try {
-      const parsed = await parseForm(request)
-      fields = parsed.fields
-      files = parsed.files
-    } catch (parseError) {
-      console.error('Form parsing error:', parseError)
-      return NextResponse.json(
-        {
-          error: 'Failed to parse upload',
-          details:
-            parseError instanceof Error
-              ? parseError.message
-              : 'Unknown error',
-        },
-        { status: 400 }
-      )
-    }
+    // Parse form data using Next.js native formData()
+    const formData = await request.formData()
+    const file = formData.get('file') as File
 
-    // Extract uploaded file
-    const fileArray = files.file
-    if (!fileArray || fileArray.length === 0) {
+    if (!file) {
+      console.log('[Upload] No file in form data')
       return NextResponse.json(
         { error: 'No file uploaded. Please select a file.' },
         { status: 400 }
       )
     }
 
-    const uploadedFile = Array.isArray(fileArray) ? fileArray[0] : fileArray
+    console.log('[Upload] File received:', file.name, file.type, file.size, 'bytes')
 
     // Validate file
     const validation = validateFile({
-      mimetype: uploadedFile.mimetype || 'application/octet-stream',
-      size: uploadedFile.size,
-      originalFilename: uploadedFile.originalFilename || 'unknown',
+      mimetype: file.type,
+      size: file.size,
+      originalFilename: file.name,
     })
 
     if (!validation.valid) {
+      console.log('[Upload] Validation failed:', validation.error)
       return NextResponse.json(
         { error: validation.error },
         { status: 400 }
       )
     }
 
-    // Read file buffer
-    const fs = await import('fs/promises')
-    const fileBuffer = await fs.readFile(uploadedFile.filepath)
+    console.log('[Upload] Validation passed')
+
+    // Convert File to Buffer
+    const arrayBuffer = await file.arrayBuffer()
+    const fileBuffer = Buffer.from(arrayBuffer)
+
+    console.log('[Upload] File converted to buffer, size:', fileBuffer.length)
 
     // Save document to storage
     const metadata = await saveDocument(
       fileBuffer,
-      uploadedFile.originalFilename || 'document',
-      uploadedFile.mimetype || 'application/octet-stream',
+      file.name,
+      file.type,
       user.id
     )
 
-    // Clean up temporary file created by formidable
-    try {
-      await fs.unlink(uploadedFile.filepath)
-    } catch {
-      // Ignore cleanup errors
-    }
+    console.log('[Upload] Document saved:', metadata.documentId)
 
     // Return success response
     return NextResponse.json(
@@ -168,7 +102,7 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     )
   } catch (error) {
-    console.error('Upload error:', error)
+    console.error('[Upload] Upload error:', error)
 
     return NextResponse.json(
       {

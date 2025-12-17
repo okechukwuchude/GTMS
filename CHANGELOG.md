@@ -21,6 +21,74 @@ All notable changes to the GTMS (Global Trade Monitoring System) project will be
 
 ---
 
+## [2025-12-17] - Phase 6 OCR Integration Complete: PDF Support & Form Integration
+
+### Type: Added
+- **Description**: Completed OCR integration with PDF-to-image conversion, form pre-filling, and OCR metadata storage. Full workflow operational: PDF upload → OCR processing → form auto-fill → save with metadata
+- **Files Modified**:
+  - `/src/lib/utils/pdf-converter.ts` (created)
+  - `/src/lib/ocr/vision-client.ts` (modified - PDF support)
+  - `/src/components/containers/ContainerRegistrationForm.tsx` (modified - OCR integration)
+  - `/src/components/containers/ContainerDialog.tsx` (modified - upload tab)
+  - `/src/lib/validations/container.validations.ts` (modified - OCR fields)
+  - `/src/app/api/containers/route.ts` (modified - OCR metadata, bug fix)
+  - `/src/components/ocr/FieldConfidenceIndicator.tsx` (implemented)
+  - `/src/components/ocr/OCRReviewPanel.tsx` (implemented)
+- **Breaking Changes**: None
+- **Notes**:
+  - **PDF Conversion Utility** (`pdf-converter.ts`):
+    - Uses `pdftoppm` (Poppler) directly via child_process for reliability
+    - Converts PDF pages to PNG at 300 DPI
+    - Optimizes to JPEG with sharp (95% quality, mozjpeg compression)
+    - Processes first page only (configurable for multi-page)
+    - Automatic temp file cleanup
+    - Initial implementation used `pdf2pic` library but encountered GraphicsMagick/ImageMagick dependency issues
+    - **Final solution**: Direct pdftoppm command execution (more reliable, already installed)
+  - **Vision API PDF Support**:
+    - Automatic PDF detection using buffer signature check
+    - Converts PDFs to images before sending to Vision API
+    - Vision API limitation: Cannot process multi-page PDFs via base64
+    - Clear error messages guide users to upload images if conversion fails
+  - **Form Integration** (Sprint 5):
+    - `ContainerDialog` now has two tabs: "Manual Entry" and "Upload Document"
+    - Document upload workflow integrated with form
+    - Form pre-fills all 26 fields from OCR data
+    - `FieldConfidenceIndicator` displays confidence badges next to each field
+    - Color-coded indicators: Green (≥95%), Yellow (85-94%), Orange (70-84%), Red (<70%)
+    - Users can review and edit any auto-filled field
+    - `OCRReviewPanel` shows extracted data with confidence scores
+  - **OCR Metadata Storage**:
+    - Validation schema updated to accept `ocr_processed`, `ocr_confidence`, `ocr_data`
+    - Form submission includes OCR metadata when container created from OCR
+    - Database already had OCR columns: `ocr_processed BOOLEAN`, `ocr_confidence DECIMAL(5,2)`, `ocr_data JSONB`
+    - Metadata stored for auditing and accuracy tracking
+  - **Bug Fixes**:
+    - Removed `risk_level` field from container creation (exists in inspections table, not containers)
+    - Fixed PGRST204 error: "Could not find the 'risk_level' column"
+  - **Testing Results**:
+    - PDF successfully converted: 710KB JPEG from first page
+    - Vision API processing: 507 text annotations, 2660 characters extracted
+    - Average processing time: 7-10 seconds (PDF conversion + OCR)
+    - Form fields auto-filled correctly
+    - Container saved with OCR metadata
+  - **Dependencies**:
+    - `pdftoppm` (from Poppler utils) - Already installed on system
+    - `sharp` - Image optimization (already installed)
+    - No additional npm packages needed (removed pdf2pic dependency)
+  - **Phase 6 Status**: ✅ COMPLETE - OCR integration fully operational
+    - Sprint 1: ✅ Vision API setup
+    - Sprint 2: ✅ File upload infrastructure
+    - Sprint 3: ✅ OCR processing engine
+    - Sprint 4: ✅ Document upload UI
+    - Sprint 5: ✅ Form integration
+    - Sprint 6+: ✅ PDF support & metadata storage
+  - **Optional Tasks Remaining**:
+    - Create OCR stats API route (for analytics dashboard)
+    - Create OCR history table (for audit trail)
+    - User/developer documentation
+
+---
+
 ## [2025-12-17] - Phase 6 Sprint 4: Frontend Document Upload Component
 
 ### Type: Added

@@ -5,14 +5,21 @@
 
 import vision from '@google-cloud/vision'
 import { VisionAPIResponse } from './types'
+import { convertPdfToImages, isPdfBuffer } from '@/lib/utils/pdf-converter'
 
 /**
  * Initialize Google Cloud Vision client
  * Handles both local development (file path) and production (JSON from env var)
  */
 function getVisionClient() {
+  console.log('[Vision] Creating Vision API client...')
+  console.log('[Vision] Project ID:', process.env.GOOGLE_CLOUD_PROJECT_ID)
+  console.log('[Vision] Has base64 JSON:', !!process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON)
+  console.log('[Vision] Credentials file path:', process.env.GOOGLE_APPLICATION_CREDENTIALS)
+
   // Production: Use base64-encoded JSON from environment variable
   if (process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON) {
+    console.log('[Vision] Using base64-encoded credentials')
     const base64Json = process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON
     const jsonString = Buffer.from(base64Json, 'base64').toString('utf-8')
     const credentials = JSON.parse(jsonString)
@@ -25,6 +32,7 @@ function getVisionClient() {
 
   // Local Development: Use file path from GOOGLE_APPLICATION_CREDENTIALS
   // The @google-cloud/vision library will automatically use this env var
+  console.log('[Vision] Using credentials file path')
   return new vision.ImageAnnotatorClient({
     keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
     projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
@@ -89,19 +97,56 @@ export async function detectTextFromBuffer(
   mimeType: string
 ): Promise<VisionAPIResponse> {
   try {
+    console.log('[Vision] Initializing Vision API client...')
     const client = getVisionClient()
 
+    let imageBuffer = buffer
+
+    // Check if buffer is a PDF and convert to image if needed
+    if (isPdfBuffer(buffer) || mimeType === 'application/pdf') {
+      console.log('[Vision] Detected PDF file, converting to image...')
+      try {
+        const imageBuffers = await convertPdfToImages(buffer, {
+          maxPages: 1, // Process first page only for now
+          density: 300, // High DPI for better OCR
+          quality: 95,
+        })
+        imageBuffer = imageBuffers[0]
+        console.log('[Vision] PDF converted to image successfully')
+      } catch (conversionError) {
+        console.error('[Vision] PDF conversion failed:', conversionError)
+        throw new Error(
+          'Failed to convert PDF to image. Please ensure the PDF is valid and not password-protected. ' +
+          'Alternatively, try uploading an image file (JPG, PNG) instead.'
+        )
+      }
+    }
+
+    console.log('[Vision] Converting buffer to base64...')
     // Prepare image request
     const request = {
       image: {
-        content: buffer.toString('base64'),
+        content: imageBuffer.toString('base64'),
       },
     }
 
+    console.log('[Vision] Calling documentTextDetection...')
     // Use documentTextDetection for structured documents
     const [result] = await client.documentTextDetection(request)
+    console.log('[Vision] documentTextDetection completed')
+    console.log('[Vision] Response keys:', Object.keys(result || {}))
+    console.log('[Vision] Has fullTextAnnotation:', !!result.fullTextAnnotation)
+    console.log('[Vision] Has textAnnotations:', !!result.textAnnotations)
+    console.log('[Vision] textAnnotations length:', result.textAnnotations?.length || 0)
+
+    // Check for Vision API error
+    if (result.error && result.error.message) {
+      console.log('[Vision] Vision API returned error:', result.error)
+      throw new Error(`Vision API error: ${result.error.message}`)
+    }
 
     if (!result.fullTextAnnotation) {
+      console.log('[Vision] Full result:', JSON.stringify(result, null, 2))
       throw new Error('No text detected in document')
     }
 
