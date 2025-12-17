@@ -21,6 +21,51 @@ All notable changes to the GTMS (Global Trade Monitoring System) project will be
 
 ---
 
+## [2025-12-17] - Phase 6 Sprint 2: File Upload Infrastructure
+
+### Type: Added
+- **Description**: Implemented file upload infrastructure for OCR document processing - API endpoint, validation, and storage utilities
+- **Files Modified**:
+  - `/src/app/api/ocr/upload/route.ts` (created)
+  - `/src/lib/utils/file-validation.ts` (created)
+  - `/src/lib/utils/document-storage.ts` (created)
+  - `package.json` (modified - dependencies added)
+- **Breaking Changes**: None
+- **Notes**:
+  - **Task 2.2**: Installed file upload dependencies:
+    - `formidable@3.5.4` - Multipart form data parsing
+    - `@types/formidable@3.4.6` - TypeScript definitions
+  - **Task 2.3**: Created comprehensive file validation utility (`file-validation.ts`):
+    - File type validation (PDF, JPG, PNG, TIFF)
+    - File size validation (max 10MB, configurable via env)
+    - Filename sanitization (prevents directory traversal attacks)
+    - Unique filename generation with timestamps
+    - Full TypeScript interfaces for validation results
+  - **Task 2.4**: Created document storage utility (`document-storage.ts`):
+    - Save documents to local filesystem (`/tmp/gtms-uploads` by default)
+    - Retrieve documents by ID
+    - Delete documents after processing
+    - Cleanup old documents (24+ hours)
+    - Storage statistics tracking
+    - Ready to swap for Supabase Storage in production
+  - **Task 2.1**: Created upload API route (`/api/ocr/upload`):
+    - POST endpoint accepts multipart/form-data
+    - User authentication via Supabase
+    - File validation (type, size, format)
+    - Secure storage with unique IDs
+    - Returns document metadata for OCR processing
+    - GET endpoint provides API documentation
+  - **Security**:
+    - User authentication required
+    - File type whitelist (no executables)
+    - Filename sanitization
+    - Size limits enforced
+    - Temporary file cleanup
+  - **Sprint 2 Status**: ✅ COMPLETE - File upload infrastructure ready
+  - **Next**: Sprint 3 - OCR Processing Engine
+
+---
+
 ## [2025-12-17] - Phase 6 Sprint 1: Google Cloud Vision API Setup & Environment Configuration
 
 ### Type: Added
