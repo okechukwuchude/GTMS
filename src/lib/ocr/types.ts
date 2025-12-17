@@ -61,44 +61,16 @@ export interface OCRResult {
   processingTimeMs: number
 }
 
+/**
+ * Vision API Response (simplified)
+ * This is a simplified version of the actual Vision API response
+ */
 export interface VisionAPIResponse {
-  fullTextAnnotation?: {
-    text: string
-    pages: Array<{
-      confidence: number
-      width: number
-      height: number
-      blocks: Array<{
-        boundingBox: {
-          vertices: Array<{ x: number; y: number }>
-        }
-        confidence: number
-        paragraphs: Array<{
-          boundingBox: {
-            vertices: Array<{ x: number; y: number }>
-          }
-          confidence: number
-          words: Array<{
-            boundingBox: {
-              vertices: Array<{ x: number; y: number }>
-            }
-            confidence: number
-            symbols: Array<{
-              text: string
-              confidence: number
-            }>
-          }>
-        }>
-      }>
-    }>
-  }
-  textAnnotations?: Array<{
-    description: string
-    boundingPoly: {
-      vertices: Array<{ x: number; y: number }>
-    }
-    confidence?: number
-  }>
+  fullText: string
+  pages: any[] // Vision API page structure
+  confidence: number // Average confidence (0-1)
+  textAnnotations: any[] // Vision API text annotations
+  raw: any // Raw Vision API response for debugging
 }
 
 export type DocumentStatus = 'uploading' | 'processing' | 'success' | 'error'

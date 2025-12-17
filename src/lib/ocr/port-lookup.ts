@@ -49,10 +49,45 @@ export async function lookupPortByCode(
     }
 
     // Try fuzzy match (similar codes)
-    // TODO: Implement fuzzy matching logic
-    // - Remove country prefix and try again
-    // - Try with different separators
-    // - Levenshtein distance for typos
+    // Strategy 1: Try without country code (last 3 letters)
+    if (normalizedCode.length >= 5) {
+      const portName = normalizedCode.slice(2) // Remove country code
+      const { data: partialMatches } = await supabase
+        .from('ports')
+        .select('id, name, code, country_code')
+        .ilike('code', `%${portName}%`)
+        .eq('status', 'active')
+        .limit(5)
+
+      if (partialMatches && partialMatches.length > 0) {
+        // Return first match with lower confidence
+        return {
+          portId: partialMatches[0].id,
+          portName: partialMatches[0].name,
+          code: partialMatches[0].code,
+          confidence: 70, // Lower confidence for fuzzy match
+        }
+      }
+    }
+
+    // Strategy 2: Try matching by port name if code looks like a name
+    if (normalizedCode.length > 5) {
+      const { data: nameMatches } = await supabase
+        .from('ports')
+        .select('id, name, code, country_code')
+        .ilike('name', `%${normalizedCode}%`)
+        .eq('status', 'active')
+        .limit(5)
+
+      if (nameMatches && nameMatches.length > 0) {
+        return {
+          portId: nameMatches[0].id,
+          portName: nameMatches[0].name,
+          code: nameMatches[0].code,
+          confidence: 60, // Low confidence for name-based match
+        }
+      }
+    }
 
     return null
   } catch (error) {
