@@ -21,6 +21,62 @@ All notable changes to the GTMS (Global Trade Monitoring System) project will be
 
 ---
 
+## [2025-12-17] - Phase 6 Sprint 4: Frontend Document Upload Component
+
+### Type: Added
+- **Description**: Implemented React components for document upload with drag-and-drop, OCR processing feedback, and status indicators
+- **Files Modified**:
+  - `/src/components/ocr/DocumentUpload.tsx` (created)
+  - `/src/lib/hooks/useDocumentUpload.ts` (created)
+  - `/src/components/ocr/OCRStatusBadge.tsx` (created)
+  - `package.json` (modified - dependencies added)
+- **Breaking Changes**: None
+- **Notes**:
+  - **Task 4.2**: Installed UI dependencies:
+    - `react-dropzone@14.3.8` - Drag-and-drop file upload
+  - **Task 4.3**: Created `useDocumentUpload` React Query hook:
+    - `useDocumentUpload()` - Combined upload + OCR processing
+    - `useDocumentUploadOnly()` - Upload only (separate processing)
+    - `useDocumentProcess()` - Process already uploaded document
+    - Handles upload → OCR → return OCRResult workflow
+    - Error handling and loading states
+    - Type-safe with full TypeScript interfaces
+  - **Task 4.4**: Created `OCRStatusBadge` component:
+    - Processing state: Animated spinner + "Extracting data..."
+    - Success states by confidence:
+      - High (≥85%): Green badge "High confidence"
+      - Medium (75-84%): Yellow badge "Review recommended"
+      - Low (60-74%): Orange badge "Manual review required"
+      - Very Low (<60%): Red badge "Low confidence"
+    - Error state: Red badge with error message
+    - Clean, accessible design with icons
+  - **Task 4.1**: Created `DocumentUpload` component:
+    - **Features**:
+      - Drag-and-drop file upload zone
+      - Click to browse file picker
+      - File type validation (PDF, JPG, PNG, TIFF)
+      - File size validation (max 10MB)
+      - Visual file preview with type-specific icons
+      - Upload progress indicator
+      - Real-time OCR status updates
+      - Error display for invalid files
+      - Success message with extracted container number
+      - Clear/reset functionality
+    - **UX Flow**:
+      1. User drags/drops or selects file
+      2. Component validates file type and size
+      3. Automatically uploads and processes
+      4. Shows progress bar during processing
+      5. Displays confidence badge when complete
+      6. Callback with full OCRResult for form integration
+    - **Styling**: Uses shadcn/ui components (Card, Button, Progress, Badge)
+    - **Accessibility**: Proper ARIA labels, keyboard navigation
+  - **Integration Ready**: Components ready for Sprint 5 (Container Form integration)
+  - **Sprint 4 Status**: ✅ COMPLETE - Document upload UI fully functional
+  - **Next**: Sprint 5 - OCR Review & Form Integration
+
+---
+
 ## [2025-12-17] - Phase 6 Sprint 3: OCR Processing Engine
 
 ### Type: Added
