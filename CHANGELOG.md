@@ -21,6 +21,55 @@ All notable changes to the GTMS (Global Trade Monitoring System) project will be
 
 ---
 
+## [2025-12-17] - Phase 6 Sprint 1: Google Cloud Vision API Setup & Environment Configuration
+
+### Type: Added
+- **Description**: Completed Sprint 1 of OCR Integration - Set up foundation for Google Cloud Vision API integration, installed dependencies, created OCR utilities folder structure, and configured environment variables
+- **Files Modified**:
+  - `/src/lib/ocr/types.ts` (created)
+  - `/src/lib/ocr/vision-client.ts` (created)
+  - `/src/lib/ocr/field-extractors.ts` (created)
+  - `/src/lib/ocr/confidence-calculator.ts` (created)
+  - `/src/lib/ocr/port-lookup.ts` (created)
+  - `/.env.local.example` (modified)
+  - `/docs/google-cloud-vision-setup.md` (created)
+  - `/ocr_integration.md` (created)
+  - `package.json` (modified - dependencies added)
+- **Breaking Changes**: None
+- **Notes**:
+  - **Task 1.1**: Created comprehensive setup guide for Google Cloud Vision API in `/docs/google-cloud-vision-setup.md`
+  - **Task 1.2**: Updated `.env.local.example` with OCR environment variables:
+    - `GOOGLE_CLOUD_PROJECT_ID` - GCP project identifier
+    - `GOOGLE_APPLICATION_CREDENTIALS` - Path to service account JSON key
+    - `UPLOAD_DIR` - Local filesystem storage path
+    - `MAX_FILE_SIZE_MB` - File upload size limit (10MB)
+    - `OCR_TIMEOUT_SECONDS` - Processing timeout (60s)
+    - `MIN_CONFIDENCE_THRESHOLD` - Minimum confidence for auto-fill (60%)
+    - `SUPPORTED_FILE_TYPES` - Accepted formats (pdf,jpg,jpeg,png,tiff)
+  - **Task 1.3**: Installed dependencies via pnpm:
+    - `@google-cloud/vision@5.3.4` - Vision API client
+    - `@google-cloud/storage@7.18.0` - Cloud Storage client
+    - `pdf-parse@2.4.5` - PDF text extraction
+    - `sharp@0.34.5` - Image processing
+  - **Task 1.4**: Created OCR utilities folder structure at `/src/lib/ocr/`:
+    - `types.ts` - Complete TypeScript interfaces for OCR (OCRField, OCRResult, VisionAPIResponse, etc.)
+    - `vision-client.ts` - Placeholder for Vision API wrapper (Sprint 3)
+    - `field-extractors.ts` - Placeholder for field extraction logic (Sprint 3)
+    - `confidence-calculator.ts` - Confidence scoring logic with tier system (95%/85%/75%/60%)
+    - `port-lookup.ts` - Port code to UUID mapping with fuzzy matching
+  - **Task 1.1**: ✅ COMPLETED - User successfully:
+    1. Created Google Cloud project (pro-plasma-481508-q3)
+    2. Enabled Cloud Vision API
+    3. Created service account with Vision API permissions
+    4. Downloaded JSON key file
+    5. Configured `.env.local` with credentials
+  - **Production Deployment**: Updated `vision-client.ts` to support both local (file path) and production (base64-encoded JSON) credential methods
+  - **Gitignore**: Verified `.env*.local` already excluded to protect credentials
+  - **Sprint 1 Status**: ✅ COMPLETE - All tasks finished, ready for Sprint 2
+  - **Next**: Sprint 2 - File Upload Infrastructure
+
+---
+
 ## [2025-12-16] - Task #41: Add Form Validation Feedback
 
 ### Type: Changed
