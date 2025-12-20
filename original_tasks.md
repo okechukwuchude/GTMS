@@ -3370,32 +3370,136 @@ After completing all tasks, verify the following end-to-end scenarios:
 
 Features to implement after MVP is complete and tested:
 
-### Phase 6: OCR Integration (Tasks 43-48)
+### Phase 6: OCR Integration (Tasks 43-48) ✅ COMPLETED
 
-- Task 43: Set up Google Cloud Vision API credentials
-- Task 44: Create document upload API route
-- Task 45: Implement OCR processing function
-- Task 46: Create OCR result parsing logic
-- Task 47: Build document upload UI component
-- Task 48: Create OCR review/correction interface
+- Task 43: Set up Google Cloud Vision API credentials ✅
+- Task 44: Create document upload API route ✅
+- Task 45: Implement OCR processing function ✅
+- Task 46: Create OCR result parsing logic ✅
+- Task 47: Build document upload UI component ✅
+- Task 48: Create OCR review/correction interface ✅
 
-### Phase 7: Real-time Notifications (Tasks 49-53)
+### Phase 7: Container Tracking & Vessel Monitoring (Tasks 49-62)
 
-- Task 49: Create notifications table migration
-- Task 50: Set up Supabase Realtime subscriptions
-- Task 51: Create notification API routes
-- Task 52: Build notification bell component
-- Task 53: Implement email notification triggers
+**Objective**: Implement real-time vessel tracking using Mapbox and AIS Stream to monitor containers in transit
 
-### Phase 8: Staff Features (Tasks 54-60)
+**Design Reference**: `/home/okcee/GTMS/design/tracking.png`
 
-- Task 54: Create staff_roles table migration
-- Task 55: Implement staff dashboard
-- Task 56: Create inspection workflow
-- Task 57: Build container search for staff
-- Task 58: Add risk scoring function
-- Task 59: Create inspection queue
-- Task 60: Build analytics dashboard
+**Tech Stack**:
+- Mapbox GL JS for interactive maps
+- AIS Stream API (aisstream.io) for real-time vessel positions
+- WebSocket for live AIS data updates
+- Deck.gl for advanced map visualizations (optional)
+
+#### Task 49: Set Up Mapbox Integration
+- Configure Mapbox account and get API token
+- Install mapbox-gl package
+- Create map configuration utilities
+- Set up TypeScript types for map components
+
+#### Task 50: Set Up AIS Stream Integration
+- Create AIS Stream account at aisstream.io
+- Configure WebSocket client for real-time vessel data
+- Implement message parsing for position reports
+- Add reconnection logic
+
+#### Task 51: Create Vessels Database Tables
+- Create `vessels` table (IMO, MMSI, name, type, status, etc.)
+- Create `vessel_positions` table (tracking history)
+- Create `container_vessel_links` table (link containers to vessels)
+- Add indexes and RLS policies
+
+#### Task 52: Create Vessel Tracking API Routes
+- `GET /api/vessels` - List vessels with filters
+- `GET /api/vessels/[id]` - Vessel details
+- `GET /api/vessels/[id]/positions` - Position history
+- `GET /api/vessels/nearby` - Vessels near a location
+- `POST /api/vessels/sync-ais` - Sync AIS data to database
+
+#### Task 53: Create Vessel React Query Hooks
+- `useVesselList()` - Fetch vessel list
+- `useVesselDetail()` - Fetch vessel details
+- `useVesselPositions()` - Fetch position history
+- `useAISStream()` - Real-time WebSocket connection
+
+#### Task 54: Build Interactive Map Component
+- Create Mapbox GL map component
+- Add vessel markers (colored by status)
+- Add port markers
+- Draw route lines between ports
+- Implement zoom/pan controls
+- Add marker clustering for many vessels
+
+#### Task 55: Build Vessel List Sidebar
+- Scrollable list of incoming/nearby vessels
+- Search by vessel name or IMO
+- Filter by status (IN_TRANSIT, AT_BERTH, ANCHORED, SCHEDULED)
+- Status badges and ETA display
+- Click vessel to select on map
+
+#### Task 56: Build Vessel Detail Panel
+- Side panel with vessel information
+- Current position (lat/lng, speed, course)
+- Schedule (last port, next port, ETA)
+- Linked containers list
+- Action buttons (Inspect, Manifest, Track Container)
+
+#### Task 57: Implement Real-time Position Updates
+- WebSocket connection to AIS Stream
+- Parse incoming position messages
+- Update React Query cache with new positions
+- Animate vessel markers on map
+- Connection status indicator
+
+#### Task 58: Build Vessel Monitoring Dashboard Page
+- Main tracking page at `/dashboard/tracking`
+- Stats cards (Total Vessels, High Risk, In Transit, At Berth)
+- Layout: Vessel list (left) + Map (center) + Detail panel (right)
+- Responsive design for mobile/tablet
+
+#### Task 59: Link Containers to Vessels
+- Dialog to search and link vessel to container
+- API endpoint to create container-vessel link
+- Display linked vessel in container details
+- Show container location via vessel position on map
+
+#### Task 60: Add Vessel Search Functionality
+- Global search in top bar
+- Autocomplete by vessel name, IMO, or MMSI
+- Click result → navigate to tracking page
+- Map centers on selected vessel
+
+#### Task 61: Implement Vessel Route Visualization
+- Draw route line from origin to destination
+- Show historical track (breadcrumb trail)
+- Display waypoints
+- Animate vessel along route
+- Toggle route visibility
+
+#### Task 62: Add Geofencing & Alerts
+- Define geofence zones (port areas, territorial waters)
+- Monitor vessel positions
+- Create alerts when vessel enters/exits zone
+- Alert notifications in UI
+- Alert history storage
+
+### Phase 8: Real-time Notifications (Tasks 63-67)
+
+- Task 63: Create notifications table migration
+- Task 64: Set up Supabase Realtime subscriptions
+- Task 65: Create notification API routes
+- Task 66: Build notification bell component
+- Task 67: Implement email notification triggers
+
+### Phase 9: Staff Features (Tasks 68-74)
+
+- Task 68: Create staff_roles table migration
+- Task 69: Implement staff dashboard
+- Task 70: Create inspection workflow
+- Task 71: Build container search for staff
+- Task 72: Add risk scoring function
+- Task 73: Create inspection queue
+- Task 74: Build analytics dashboard
 
 ---
 

@@ -229,3 +229,4 @@ Follow this organization:
 - Full architecture details: `architecture.md`
 - Complete requirements: `maritime_inspection_prd.md`
 - UI mockups: `design/` directory
+- after every changes, update the changelog.md and status.md files

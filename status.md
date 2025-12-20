@@ -1,26 +1,81 @@
 # GTMS MVP Development - Progress Tracker
 
-**Last Updated**: December 16, 2025
+**Last Updated**: December 19, 2025
 **Project**: Global Trade Monitoring System (Maritime Container Inspection)
 
-**⚠️ PLAN UPDATED**: Tasks.md has been revised with 39 new tasks across 7 sprints based on comprehensive plan review. See tasks.md for full details.
+**⚠️ PLAN UPDATED**: Phase 7 (Container Tracking & Vessel Monitoring) in progress with 14 tasks for real-time vessel tracking using Mapbox and AIS Stream.
 
 ---
 
 ## Current Progress
 
-- **Phase**: ✅ **Sprint 4 COMPLETE!** - Moving to Sprint 5
-- **Current Sprint**: Sprint 5 - Container Management Backend
-- **Last Successful Task**: #42 - Create Dashboard Page (December 16, 2025)
-- **Next Task**: #43 - Create Query Key Factory
-- **Completion**: 42/63 tasks (67% complete) - Two-thirds done! 🎉
-- **Sprint 4 Summary**: Dashboard loading/error states ✅, Dashboard API ✅, useDashboard hook ✅, Dashboard page ✅
+- **Phase**: ✅ **Phase 6 (OCR) COMPLETE!** - Now in Phase 7
+- **Current Phase**: Phase 7 - Container Tracking & Vessel Monitoring
+- **Last Successful Task**: Task #53 - Create Vessel React Query Hooks (December 19, 2025)
+- **Next Task**: Task #54 - Build Interactive Map Component
+- **Completion**: 53/74 tasks (72% complete) - Over two-thirds done! 🎉
+- **Phase 7 Summary**: Mapbox ✅, AIS Stream ✅, Vessel DB ✅, Vessel API ✅, Vessel Hooks ✅ (5/14 tasks, 36%)
 
 ---
 
 ## Task Status
 
 ### ✅ Completed
+
+- **Phase 7: Container Tracking & Vessel Monitoring** - In Progress (5/14 tasks complete)
+
+- Task #53: Create Vessel React Query Hooks - Completed December 19, 2025
+  - Created /src/lib/hooks/useVessels.ts
+  - Query hooks: useVessels, useVessel, useVesselPositions, useVesselRoutes, useVesselContainers
+  - Mutation hooks: useCreateVessel, useUpdateVessel, useDeleteVessel, useAddVesselPosition, useCreateVesselRoute, useLinkContainerToVessel
+  - Query key factory for efficient caching
+  - Automatic cache invalidation on mutations
+  - Toast notifications for user feedback
+  - TypeScript types for all vessel data structures
+
+- Task #52: Create Vessel Tracking API Routes - Completed December 19, 2025
+  - Created /src/app/api/vessels/route.ts (GET list, POST create)
+  - Created /src/app/api/vessels/[id]/route.ts (GET detail, PUT update, DELETE)
+  - Created /src/app/api/vessels/[id]/positions/route.ts (GET history, POST add)
+  - Created /src/app/api/vessels/[id]/route/route.ts (GET routes, POST create route)
+  - Created /src/app/api/vessels/[id]/containers/route.ts (GET containers, POST link)
+  - Created /src/app/api/ais/webhook/route.ts (POST receive AIS updates)
+  - All endpoints have authentication and staff permission checks
+  - RLS enforcement through Supabase
+  - Added AIS_WEBHOOK_SECRET to .env.local.example
+
+- Task #51: Create Vessels Database Tables - Completed December 19, 2025
+  - Added MIGRATION 5 to /database_scripts.sql
+  - Created vessels table (IMO, MMSI, specs, position, destination)
+  - Created vessel_positions table (historical tracking)
+  - Created vessel_routes table (planned/active/completed routes)
+  - Created container_vessels table (many-to-many linking)
+  - Added vessel_id column to containers table
+  - RLS policies: Public read, staff-only write
+  - Geospatial indexes for position queries
+  - Resolved profiles table schema conflict with ALTER TABLE script
+
+- Task #50: Set Up AIS Stream Integration - Completed December 19, 2025
+  - Created /src/lib/ais-stream/types.ts (TypeScript types from docs)
+  - Created /src/lib/ais-stream/client.ts (WebSocket client)
+  - Created /src/lib/ais-stream/parser.ts (message parsers)
+  - Created /src/lib/ais-stream/index.ts (barrel exports)
+  - 3-second subscription timeout enforced (critical requirement)
+  - Automatic reconnection with exponential backoff
+  - Event emitter for position updates
+  - Message parsing for PositionReport and ShipStaticData
+  - Position validation and recency checking
+  - Added AIS_STREAM_API_KEY to .env.local
+
+- Task #49: Set Up Mapbox Integration - Completed December 19, 2025
+  - Installed mapbox-gl and @types/mapbox-gl
+  - Created /src/lib/mapbox/config.ts (map configuration)
+  - Created /src/lib/mapbox/types.ts (TypeScript types)
+  - Created /src/lib/mapbox/utils.ts (helper functions)
+  - Map styles: streets, satellite, dark, light, navigation
+  - Vessel status color coding
+  - Helper utilities: bearing, ETA, coordinates, distance conversion
+  - Added NEXT_PUBLIC_MAPBOX_TOKEN to .env.local
 
 - **Tracking Files Updated** - Completed December 16, 2025
   - Updated tasks.md with revised 39-task plan across 7 sprints

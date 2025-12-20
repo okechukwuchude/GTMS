@@ -21,6 +21,120 @@ All notable changes to the GTMS (Global Trade Monitoring System) project will be
 
 ---
 
+## [2025-12-19] - Phase 7 Tasks 49-53: Vessel Tracking Foundation Complete
+
+### Type: Added
+- **Description**: Completed foundation for real-time vessel tracking with Mapbox integration, AIS Stream WebSocket client, database schema, API routes, and React Query hooks
+- **Files Modified**:
+  - **Mapbox Integration** (Task 49):
+    - `/src/lib/mapbox/config.ts` (created)
+    - `/src/lib/mapbox/types.ts` (created)
+    - `/src/lib/mapbox/utils.ts` (created)
+    - `/.env.local.example` (modified - Mapbox token)
+    - `package.json` (modified - mapbox-gl installed)
+  - **AIS Stream Integration** (Task 50):
+    - `/src/lib/ais-stream/types.ts` (created)
+    - `/src/lib/ais-stream/client.ts` (created)
+    - `/src/lib/ais-stream/parser.ts` (created)
+    - `/src/lib/ais-stream/index.ts` (created)
+    - `/.env.local.example` (modified - AIS Stream config)
+  - **Database Tables** (Task 51):
+    - `/database_scripts.sql` (modified - Migration 5 added)
+  - **API Routes** (Task 52):
+    - `/src/app/api/vessels/route.ts` (created)
+    - `/src/app/api/vessels/[id]/route.ts` (created)
+    - `/src/app/api/vessels/[id]/positions/route.ts` (created)
+    - `/src/app/api/vessels/[id]/route/route.ts` (created)
+    - `/src/app/api/vessels/[id]/containers/route.ts` (created)
+    - `/src/app/api/ais/webhook/route.ts` (created)
+    - `/.env.local.example` (modified - AIS webhook secret)
+  - **React Hooks** (Task 53):
+    - `/src/lib/hooks/useVessels.ts` (created)
+- **Breaking Changes**:
+  - Added `vessel_id` column to `containers` table (nullable FK to vessels)
+  - Modified `profiles` table to add GTMS-required columns (user_type, email, etc.) while preserving existing schema
+- **Notes**:
+  - **Task 49: Mapbox Integration**:
+    - Map configuration with multiple styles (streets, satellite, dark, light, navigation)
+    - Vessel status color coding (IN_TRANSIT: blue, AT_BERTH: green, ANCHORED: orange, HIGH_RISK: red)
+    - Default center: Rotterdam Port (51.9225°N, 4.47917°E)
+    - Animation settings for smooth vessel movement transitions
+    - Helper utilities: bearing calculation, ETA calculation, coordinate formatting, distance conversion
+  - **Task 50: AIS Stream Integration**:
+    - **Critical**: 3-second subscription timeout enforced (2.5s buffer for safety)
+    - WebSocket client with automatic reconnection (exponential backoff, max 10 attempts)
+    - Event emitter pattern for position updates
+    - Message parsers for PositionReport and ShipStaticData
+    - Human-readable status/type descriptions (e.g., "Under way using engine", "Cargo ship")
+    - Position validation and recency checking
+    - Documentation: https://aisstream.io/documentation
+  - **Task 51: Vessel Database Tables**:
+    - **MIGRATION 5** added to database_scripts.sql
+    - **vessels** table: IMO, MMSI, vessel specs, current position, destination, AIS metadata
+    - **vessel_positions** table: Historical position tracking with timestamps
+    - **vessel_routes** table: Planned/active/completed routes with GeoJSON coordinates
+    - **container_vessels** table: Many-to-many linking with loading/unloading details
+    - Added `vessel_id` FK to containers table for quick lookups
+    - RLS policies: Public read, staff-only write
+    - Geospatial indexes for position-based queries
+    - Auto-update triggers for timestamps
+  - **Task 52: Vessel API Routes**:
+    - `GET /api/vessels` - List vessels with filtering (status, MMSI, IMO, search, pagination)
+    - `POST /api/vessels` - Create vessel (staff only)
+    - `GET /api/vessels/[id]` - Get vessel details with current/destination ports
+    - `PUT /api/vessels/[id]` - Update vessel (staff only)
+    - `DELETE /api/vessels/[id]` - Delete vessel (staff only)
+    - `GET /api/vessels/[id]/positions` - Position history with pagination
+    - `POST /api/vessels/[id]/positions` - Add position (updates both history and current)
+    - `GET /api/vessels/[id]/route` - Get routes (active/planned/completed)
+    - `POST /api/vessels/[id]/route` - Create route with waypoints (staff only)
+    - `GET /api/vessels/[id]/containers` - Get containers on vessel
+    - `POST /api/vessels/[id]/containers` - Link container to vessel (staff only)
+    - `POST /api/ais/webhook` - Receive AIS position updates from backend WebSocket
+    - All endpoints have authentication and staff permission checks
+    - RLS enforcement through Supabase
+  - **Task 53: Vessel React Query Hooks**:
+    - Query hooks: useVessels, useVessel, useVesselPositions, useVesselRoutes, useVesselContainers
+    - Mutation hooks: useCreateVessel, useUpdateVessel, useDeleteVessel, useAddVesselPosition, useCreateVesselRoute, useLinkContainerToVessel
+    - Query key factory for efficient caching
+    - Automatic cache invalidation on mutations
+    - Toast notifications for user feedback
+    - TypeScript types for all vessel data structures
+  - **Database Schema Issue Resolution**:
+    - User's existing profiles table had different schema (employee_id, assigned_lgas)
+    - Created ALTER TABLE script to add missing GTMS columns (user_type, email, company fields, etc.)
+    - Preserved existing columns to avoid breaking other applications
+    - Populated email from auth.users table
+    - Added constraints after data population
+  - **Environment Variables Added**:
+    - `NEXT_PUBLIC_MAPBOX_TOKEN` - Mapbox public access token
+    - `AIS_STREAM_API_KEY` - AIS Stream API key
+    - `AIS_STREAM_WS_URL` - WebSocket URL (wss://stream.aisstream.io/v0/stream)
+    - `AIS_WEBHOOK_SECRET` - Secure webhook authentication
+    - `VESSEL_POSITION_UPDATE_INTERVAL_MS` - Update frequency (default: 30000)
+    - `VESSEL_HISTORY_RETENTION_DAYS` - History retention (default: 90)
+    - `MAX_VESSELS_PER_MAP` - Map performance limit (default: 500)
+  - **Dependencies Installed**:
+    - `mapbox-gl` - Interactive mapping library
+    - `@types/mapbox-gl` - TypeScript definitions
+  - **Phase 7 Progress**: Tasks 49-53 complete (5/14 tasks, 36%)
+    - ✅ Task 49: Mapbox Integration
+    - ✅ Task 50: AIS Stream Integration
+    - ✅ Task 51: Vessel Database Tables
+    - ✅ Task 52: Vessel Tracking API Routes
+    - ✅ Task 53: Vessel React Query Hooks
+    - ⏳ Task 54: Build Interactive Map Component
+    - ⏳ Task 55: Build Vessel List Sidebar
+    - ⏳ Task 56: Build Vessel Detail Panel
+    - ⏳ Task 57: Implement Real-time Position Updates
+    - ⏳ Task 58: Build Vessel Monitoring Dashboard Page
+    - ⏳ Task 59: Link Containers to Vessels
+    - ⏳ Task 60: Add Vessel Search Functionality
+    - ⏳ Task 61: Implement Vessel Route Visualization
+    - ⏳ Task 62: Add Geofencing & Alerts
+
+---
+
 ## [2025-12-17] - Phase 6 OCR Integration Complete: PDF Support & Form Integration
 
 ### Type: Added

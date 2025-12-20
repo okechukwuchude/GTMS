@@ -3,10 +3,10 @@
 -- ============================================================================
 -- Project: Global Trade Monitoring System (Maritime Container Inspection)
 -- Database: PostgreSQL (Supabase)
--- Last Updated: December 15, 2025
+-- Last Updated: December 19, 2025
 --
 -- INSTRUCTIONS:
--- - Run these migrations in order (Migration 1 → 2 → 3 → 4)
+-- - Run these migrations in order (Migration 1 → 2 → 3 → 4 → 5)
 -- - Execute in Supabase SQL Editor
 -- - Test each migration before proceeding to the next
 -- - Rollback scripts provided at the end of each section
@@ -356,6 +356,387 @@ DROP TABLE IF EXISTS container_status_history CASCADE;
 */
 
 -- ============================================================================
+-- MIGRATION 5: VESSEL TRACKING TABLES (PHASE 7)
+-- ============================================================================
+-- Description: Real-time vessel tracking and container-vessel associations
+-- Dependencies: containers table, ports table
+-- Task Reference: Task #51 (Phase 7: Container Tracking & Vessel Monitoring)
+-- Integration: Mapbox for visualization, AIS Stream for real-time positions
+-- ============================================================================
+
+-- Create vessels table
+CREATE TABLE vessels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Vessel identification
+  imo_number VARCHAR(20) UNIQUE,
+  mmsi VARCHAR(20) UNIQUE,
+  vessel_name VARCHAR(255) NOT NULL,
+  call_sign VARCHAR(20),
+
+  -- Vessel specifications
+  vessel_type VARCHAR(50),
+  vessel_type_code INTEGER,
+  flag_country VARCHAR(3),
+  gross_tonnage INTEGER,
+  net_tonnage INTEGER,
+  deadweight_tonnage INTEGER,
+  built_year INTEGER,
+
+  -- Dimensions (in meters)
+  length_meters DECIMAL(10, 2),
+  beam_meters DECIMAL(10, 2),
+  draft_meters DECIMAL(10, 2),
+
+  -- Ownership
+  owner_name VARCHAR(255),
+  operator_name VARCHAR(255),
+  manager_name VARCHAR(255),
+
+  -- Current status
+  status VARCHAR(30) DEFAULT 'active' CHECK (status IN (
+    'active', 'inactive', 'in_transit', 'at_berth',
+    'anchored', 'under_repair', 'decommissioned'
+  )),
+
+  -- Current position (latest from AIS)
+  current_latitude DECIMAL(10, 8),
+  current_longitude DECIMAL(11, 8),
+  current_speed_knots DECIMAL(5, 2),
+  current_course DECIMAL(5, 2),
+  current_heading DECIMAL(5, 2),
+  navigation_status INTEGER,
+  current_port_id UUID REFERENCES ports(id),
+
+  -- Destination
+  destination_port_id UUID REFERENCES ports(id),
+  destination_name VARCHAR(255),
+  eta TIMESTAMPTZ,
+
+  -- Tracking metadata
+  last_position_update TIMESTAMPTZ,
+  ais_data_source VARCHAR(50) DEFAULT 'aisstream',
+  position_update_frequency_seconds INTEGER DEFAULT 30,
+
+  -- AIS raw data (for debugging)
+  last_ais_message JSONB,
+
+  -- Audit
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES profiles(id),
+  updated_by UUID REFERENCES profiles(id)
+);
+
+-- Create indexes for vessels
+CREATE INDEX idx_vessels_imo ON vessels(imo_number);
+CREATE INDEX idx_vessels_mmsi ON vessels(mmsi);
+CREATE INDEX idx_vessels_name ON vessels(vessel_name);
+CREATE INDEX idx_vessels_status ON vessels(status);
+CREATE INDEX idx_vessels_current_port ON vessels(current_port_id);
+CREATE INDEX idx_vessels_destination_port ON vessels(destination_port_id);
+CREATE INDEX idx_vessels_last_position_update ON vessels(last_position_update DESC);
+
+-- Geospatial index for position-based queries (e.g., "vessels near this port")
+CREATE INDEX idx_vessels_position ON vessels USING BTREE(current_latitude, current_longitude);
+
+-- Enable Row Level Security
+ALTER TABLE vessels ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Vessels are viewable by all authenticated users
+CREATE POLICY "Vessels are viewable by all authenticated users"
+ON vessels FOR SELECT
+TO authenticated
+USING (true);
+
+-- RLS Policy: Only staff can create/update vessels
+CREATE POLICY "Staff can create vessels"
+ON vessels FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND user_type = 'staff'
+  )
+);
+
+CREATE POLICY "Staff can update vessels"
+ON vessels FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND user_type = 'staff'
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND user_type = 'staff'
+  )
+);
+
+-- Trigger to auto-update updated_at on vessels
+CREATE TRIGGER update_vessels_updated_at
+  BEFORE UPDATE ON vessels
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- Create vessel_positions table (historical position tracking)
+-- ============================================================================
+
+CREATE TABLE vessel_positions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vessel_id UUID NOT NULL REFERENCES vessels(id) ON DELETE CASCADE,
+
+  -- Position data
+  latitude DECIMAL(10, 8) NOT NULL,
+  longitude DECIMAL(11, 8) NOT NULL,
+  speed_knots DECIMAL(5, 2),
+  course_over_ground DECIMAL(5, 2),
+  heading DECIMAL(5, 2),
+  navigation_status INTEGER,
+
+  -- Port proximity
+  port_id UUID REFERENCES ports(id),
+  distance_to_port_km DECIMAL(10, 2),
+
+  -- AIS metadata
+  timestamp TIMESTAMPTZ NOT NULL,
+  data_source VARCHAR(50) DEFAULT 'aisstream',
+  message_type VARCHAR(50),
+  raw_ais_data JSONB,
+
+  -- Audit
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create indexes for vessel_positions
+CREATE INDEX idx_vessel_positions_vessel_id ON vessel_positions(vessel_id);
+CREATE INDEX idx_vessel_positions_timestamp ON vessel_positions(timestamp DESC);
+CREATE INDEX idx_vessel_positions_vessel_timestamp ON vessel_positions(vessel_id, timestamp DESC);
+
+-- Composite index for position-based queries
+CREATE INDEX idx_vessel_positions_location ON vessel_positions USING BTREE(latitude, longitude);
+
+-- Enable Row Level Security
+ALTER TABLE vessel_positions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Position history viewable by all authenticated users
+CREATE POLICY "Vessel positions are viewable by all authenticated users"
+ON vessel_positions FOR SELECT
+TO authenticated
+USING (true);
+
+-- RLS Policy: Only system can insert positions (via API)
+CREATE POLICY "System can insert vessel positions"
+ON vessel_positions FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+-- ============================================================================
+-- Create vessel_routes table (planned and actual routes)
+-- ============================================================================
+
+CREATE TABLE vessel_routes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vessel_id UUID NOT NULL REFERENCES vessels(id) ON DELETE CASCADE,
+
+  -- Route details
+  route_name VARCHAR(255),
+  origin_port_id UUID REFERENCES ports(id),
+  destination_port_id UUID REFERENCES ports(id),
+
+  -- Route type
+  route_type VARCHAR(20) DEFAULT 'active' CHECK (route_type IN (
+    'planned', 'active', 'completed', 'cancelled'
+  )),
+
+  -- Route geometry (array of coordinates)
+  coordinates JSONB NOT NULL, -- [{lat, lng}, {lat, lng}, ...]
+  total_distance_km DECIMAL(10, 2),
+
+  -- Schedule
+  departure_time TIMESTAMPTZ,
+  estimated_arrival TIMESTAMPTZ,
+  actual_arrival TIMESTAMPTZ,
+
+  -- Waypoints and stops
+  waypoints JSONB, -- [{name, lat, lng, eta, ata}, ...]
+  intermediate_ports UUID[] DEFAULT ARRAY[]::UUID[],
+
+  -- Audit
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES profiles(id)
+);
+
+-- Create indexes for vessel_routes
+CREATE INDEX idx_vessel_routes_vessel_id ON vessel_routes(vessel_id);
+CREATE INDEX idx_vessel_routes_origin_port ON vessel_routes(origin_port_id);
+CREATE INDEX idx_vessel_routes_destination_port ON vessel_routes(destination_port_id);
+CREATE INDEX idx_vessel_routes_type ON vessel_routes(route_type);
+CREATE INDEX idx_vessel_routes_departure ON vessel_routes(departure_time);
+
+-- Enable Row Level Security
+ALTER TABLE vessel_routes ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Routes viewable by all authenticated users
+CREATE POLICY "Vessel routes are viewable by all authenticated users"
+ON vessel_routes FOR SELECT
+TO authenticated
+USING (true);
+
+-- RLS Policy: Staff can manage routes
+CREATE POLICY "Staff can create vessel routes"
+ON vessel_routes FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND user_type = 'staff'
+  )
+);
+
+CREATE POLICY "Staff can update vessel routes"
+ON vessel_routes FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND user_type = 'staff'
+  )
+);
+
+-- Trigger to auto-update updated_at on vessel_routes
+CREATE TRIGGER update_vessel_routes_updated_at
+  BEFORE UPDATE ON vessel_routes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- Create container_vessels table (link containers to vessels)
+-- ============================================================================
+
+CREATE TABLE container_vessels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  container_id UUID NOT NULL REFERENCES containers(id) ON DELETE CASCADE,
+  vessel_id UUID NOT NULL REFERENCES vessels(id) ON DELETE CASCADE,
+
+  -- Loading details
+  loaded_at_port_id UUID REFERENCES ports(id),
+  loaded_at TIMESTAMPTZ,
+  loading_confirmed BOOLEAN DEFAULT FALSE,
+
+  -- Unloading details
+  unload_at_port_id UUID REFERENCES ports(id),
+  estimated_unload_at TIMESTAMPTZ,
+  actual_unload_at TIMESTAMPTZ,
+  unloading_confirmed BOOLEAN DEFAULT FALSE,
+
+  -- Status
+  status VARCHAR(30) DEFAULT 'loaded' CHECK (status IN (
+    'loaded', 'in_transit', 'arrived', 'unloaded'
+  )),
+
+  -- Container position on vessel
+  bay_position VARCHAR(20),
+  row_position VARCHAR(20),
+  tier_position VARCHAR(20),
+
+  -- Notes
+  notes TEXT,
+
+  -- Audit
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES profiles(id),
+  updated_by UUID REFERENCES profiles(id),
+
+  -- Ensure a container is only on one active vessel at a time
+  UNIQUE(container_id, vessel_id, loaded_at)
+);
+
+-- Create indexes for container_vessels
+CREATE INDEX idx_container_vessels_container_id ON container_vessels(container_id);
+CREATE INDEX idx_container_vessels_vessel_id ON container_vessels(vessel_id);
+CREATE INDEX idx_container_vessels_status ON container_vessels(status);
+CREATE INDEX idx_container_vessels_loaded_at_port ON container_vessels(loaded_at_port_id);
+CREATE INDEX idx_container_vessels_unload_at_port ON container_vessels(unload_at_port_id);
+
+-- Enable Row Level Security
+ALTER TABLE container_vessels ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Users can view container-vessel links for their own containers
+CREATE POLICY "Users can view own container-vessel links"
+ON container_vessels FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM containers
+    WHERE containers.id = container_vessels.container_id
+    AND containers.owner_id = auth.uid()
+  )
+  OR
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND user_type = 'staff'
+  )
+);
+
+-- RLS Policy: Staff can create container-vessel links
+CREATE POLICY "Staff can create container-vessel links"
+ON container_vessels FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND user_type = 'staff'
+  )
+);
+
+-- RLS Policy: Staff can update container-vessel links
+CREATE POLICY "Staff can update container-vessel links"
+ON container_vessels FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND user_type = 'staff'
+  )
+);
+
+-- Trigger to auto-update updated_at on container_vessels
+CREATE TRIGGER update_container_vessels_updated_at
+  BEFORE UPDATE ON container_vessels
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- Add vessel_id to containers table (for quick lookup)
+-- ============================================================================
+
+ALTER TABLE containers ADD COLUMN vessel_id UUID REFERENCES vessels(id);
+CREATE INDEX idx_containers_vessel_id ON containers(vessel_id);
+
+-- ============================================================================
+-- ROLLBACK MIGRATION 5
+-- ============================================================================
+/*
+-- Remove vessel_id column from containers
+ALTER TABLE containers DROP COLUMN IF EXISTS vessel_id;
+
+-- Drop all triggers
+DROP TRIGGER IF EXISTS update_container_vessels_updated_at ON container_vessels;
+DROP TRIGGER IF EXISTS update_vessel_routes_updated_at ON vessel_routes;
+DROP TRIGGER IF EXISTS update_vessels_updated_at ON vessels;
+
+-- Drop all tables (CASCADE will drop dependent objects)
+DROP TABLE IF EXISTS container_vessels CASCADE;
+DROP TABLE IF EXISTS vessel_routes CASCADE;
+DROP TABLE IF EXISTS vessel_positions CASCADE;
+DROP TABLE IF EXISTS vessels CASCADE;
+*/
+
+-- ============================================================================
 -- VERIFICATION QUERIES
 -- ============================================================================
 -- Run these queries after migrations to verify everything is set up correctly
@@ -411,7 +792,13 @@ ORDER BY
 -- ============================================================================
 
 /*
+-- Remove vessel_id column from containers (Migration 5)
+ALTER TABLE containers DROP COLUMN IF EXISTS vessel_id;
+
 -- Drop all triggers
+DROP TRIGGER IF EXISTS update_container_vessels_updated_at ON container_vessels;
+DROP TRIGGER IF EXISTS update_vessel_routes_updated_at ON vessel_routes;
+DROP TRIGGER IF EXISTS update_vessels_updated_at ON vessels;
 DROP TRIGGER IF EXISTS track_container_status ON containers;
 DROP TRIGGER IF EXISTS update_containers_updated_at ON containers;
 DROP TRIGGER IF EXISTS update_ports_updated_at ON ports;
@@ -424,6 +811,12 @@ DROP FUNCTION IF EXISTS update_updated_at_column();
 DROP FUNCTION IF EXISTS public.handle_new_user();
 
 -- Drop all tables (CASCADE will drop dependent objects)
+-- Migration 5 tables
+DROP TABLE IF EXISTS container_vessels CASCADE;
+DROP TABLE IF EXISTS vessel_routes CASCADE;
+DROP TABLE IF EXISTS vessel_positions CASCADE;
+DROP TABLE IF EXISTS vessels CASCADE;
+-- Migration 1-4 tables
 DROP TABLE IF EXISTS container_status_history CASCADE;
 DROP TABLE IF EXISTS containers CASCADE;
 DROP TABLE IF EXISTS ports CASCADE;

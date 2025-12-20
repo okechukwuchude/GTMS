@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Package, Settings, X, ClipboardCheck, Users } from 'lucide-react'
+import { Home, Package, Settings, X, ClipboardCheck, Users, Ship } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { cn } from '@/lib/utils'
@@ -13,7 +13,8 @@ interface SidebarProps {
 
 const publicNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Container Tracking', href: '/dashboard/containers', icon: Package },
+  { name: 'Containers', href: '/dashboard/containers', icon: Package },
+  { name: 'Tracking', href: '/dashboard/tracking', icon: Ship },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
