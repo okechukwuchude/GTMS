@@ -108,6 +108,21 @@ export default function VesselMap({
     }
   }, [mapStyle, initialCenter, initialZoom])
 
+  // Pan to selected vessel
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !selectedVesselId) return
+
+    const selectedVessel = vessels.find((v) => v.id === selectedVesselId)
+    if (selectedVessel) {
+      map.current.flyTo({
+        center: [selectedVessel.position.lng, selectedVessel.position.lat],
+        zoom: 12,
+        duration: 1500,
+        essential: true,
+      })
+    }
+  }, [selectedVesselId, vessels, mapLoaded])
+
   // Update vessel markers
   useEffect(() => {
     if (!map.current || !mapLoaded) return

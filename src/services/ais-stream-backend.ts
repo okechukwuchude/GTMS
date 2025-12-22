@@ -43,6 +43,9 @@ const HEARTBEAT_TIMEOUT = 10
 const RECONNECT_DELAY = 5
 const MAX_RECONNECT_DELAY = 30
 
+// Test mode: Set to 'true' to subscribe to all vessels (like seaspy) - for debugging only
+const TEST_MODE_NO_MMSI_FILTER = process.env.AIS_TEST_MODE === 'true'
+
 // Bounding boxes to subscribe to (can be configured)
 // Format: [[lat1, lon1], [lat2, lon2]] (southwest, northeast)
 const DEFAULT_BOUNDING_BOXES = [
@@ -51,6 +54,14 @@ const DEFAULT_BOUNDING_BOXES = [
     [52.0, 4.7], // (northeast)
   ],
   // Add more bounding boxes as needed
+]
+
+// Test mode bounding boxes (broader coverage for testing)
+const TEST_MODE_BOUNDING_BOXES = [
+  [
+    [25.0, -10.0], // West Africa (southwest)
+    [38.0, 20.0], // (northeast)
+  ],
 ]
 
 interface AISSubscription {
@@ -97,6 +108,7 @@ class AISStreamBackend {
   private heartbeatInterval: NodeJS.Timeout | null = null
   private reconnectAttempts = 0
   private isShuttingDown = false
+  private trackedMMSIs: string[] = []
 
   constructor() {
     // Initialize Supabase client with service role key (bypasses RLS)
@@ -112,11 +124,48 @@ class AISStreamBackend {
 
   async start() {
     console.log('[AIS Backend] Starting...')
+
+    // Get list of vessels to track from database
+    await this.loadVesselsToTrack()
+
     this.connect()
 
     // Handle graceful shutdown
     process.on('SIGINT', () => this.shutdown())
     process.on('SIGTERM', () => this.shutdown())
+
+    // Refresh vessel list every hour
+    setInterval(() => this.loadVesselsToTrack(), 60 * 60 * 1000)
+  }
+
+  private async loadVesselsToTrack() {
+    try {
+      // Get all unique MMSIs from user_vessels
+      const { data: userVessels, error } = await this.supabase
+        .from('user_vessels')
+        .select('vessel_id, vessels(mmsi)')
+
+      if (error) {
+        console.error('[AIS Backend] Error loading vessels:', error)
+        return
+      }
+
+      // Extract MMSIs
+      const mmsiList = userVessels
+        ?.map((uv: any) => uv.vessels?.mmsi)
+        .filter((mmsi: string | null) => mmsi !== null) as string[]
+
+      if (mmsiList && mmsiList.length > 0) {
+        console.log(`[AIS Backend] Tracking ${mmsiList.length} vessels by MMSI`)
+        // Store for subscription
+        this.trackedMMSIs = mmsiList
+      } else {
+        console.log('[AIS Backend] No vessels to track yet. Using bounding box subscription.')
+        this.trackedMMSIs = []
+      }
+    } catch (error) {
+      console.error('[AIS Backend] Error in loadVesselsToTrack:', error)
+    }
   }
 
   private connect() {
@@ -158,17 +207,35 @@ class AISStreamBackend {
 
     const subscription: AISSubscription = {
       APIKey: AISSTREAM_API_KEY,
-      BoundingBoxes: DEFAULT_BOUNDING_BOXES,
-      // Optional: Filter by specific vessels
-      // FiltersShipMMSI: ['123456789'],
-      // Optional: Filter by message types
-      // FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
+      BoundingBoxes: TEST_MODE_NO_MMSI_FILTER ? TEST_MODE_BOUNDING_BOXES : DEFAULT_BOUNDING_BOXES,
+      FilterMessageTypes: ['PositionReport', 'ShipStaticData'], // Request both position and static data
     }
 
-    console.log('[AIS Backend] Sending subscription:', {
-      boxes: subscription.BoundingBoxes.length,
-      mmsiFilters: subscription.FiltersShipMMSI?.length || 0,
-    })
+    // TEST MODE: Skip MMSI filtering to receive all vessels (for debugging)
+    if (TEST_MODE_NO_MMSI_FILTER) {
+      console.log('[AIS Backend] 🧪 TEST MODE ENABLED - Receiving ALL vessels in area')
+      console.log('[AIS Backend] Sending subscription:', {
+        boxes: subscription.BoundingBoxes.length,
+        mmsiFilters: 0,
+        mode: 'TEST MODE - All vessels (no MMSI filter)',
+        area: 'West Africa (25.0°N to 38.0°N, -10.0°W to 20.0°E)',
+      })
+    }
+    // PRODUCTION MODE: Filter by user's vessels
+    else if (this.trackedMMSIs.length > 0) {
+      subscription.FiltersShipMMSI = this.trackedMMSIs
+      console.log('[AIS Backend] Sending subscription:', {
+        boxes: subscription.BoundingBoxes.length,
+        mmsiFilters: subscription.FiltersShipMMSI.length,
+        mode: 'MMSI-filtered (tracking user vessels only)',
+      })
+    } else {
+      console.log('[AIS Backend] Sending subscription:', {
+        boxes: subscription.BoundingBoxes.length,
+        mmsiFilters: 0,
+        mode: 'Bounding box (no user vessels yet)',
+      })
+    }
 
     this.ws.send(JSON.stringify(subscription))
   }
@@ -177,14 +244,21 @@ class AISStreamBackend {
     try {
       const packet: AISPacket = JSON.parse(data.toString())
 
+      // Debug: Log message type
+      console.log(`[AIS Backend] Received ${packet.MessageType} for MMSI ${packet.MetaData.MMSI}`)
+
       // Handle position reports
       if (packet.Message.PositionReport) {
-        this.handlePositionReport(packet)
+        this.handlePositionReport(packet).catch((error) => {
+          console.error(`[AIS Backend] Error handling position report for ${packet.MetaData.MMSI}:`, error)
+        })
       }
 
       // Handle static data (ship name, destination, etc.)
       if (packet.Message.ShipStaticData) {
-        this.handleStaticData(packet)
+        this.handleStaticData(packet).catch((error) => {
+          console.error(`[AIS Backend] Error handling static data for ${packet.MetaData.MMSI}:`, error)
+        })
       }
     } catch (error) {
       console.error('[AIS Backend] Error parsing message:', error)
@@ -199,7 +273,12 @@ class AISStreamBackend {
     const lat = metadata.latitude || report.Latitude
     const lon = metadata.longitude || report.Longitude
 
-    if (!lat || !lon) return
+    if (!lat || !lon) {
+      console.log(`[AIS Backend] ⚠️  No position data for ${mmsi}: lat=${lat}, lon=${lon}`)
+      return
+    }
+
+    console.log(`[AIS Backend] 📍 Processing position for ${mmsi} at ${lat}, ${lon}`)
 
     try {
       // First, check if vessel exists

@@ -21,6 +21,165 @@ All notable changes to the GTMS (Global Trade Monitoring System) project will be
 
 ---
 
+## [2025-12-22] - Phase 7: AIS Stream Debugging & Map Interaction Enhancements
+
+### Type: Fixed
+- **Description**: Debugged and fixed critical AIS Stream integration issues preventing position reports from being received, added test mode for debugging, created demo vessels for testing, and implemented map pan-to-vessel functionality
+- **Files Modified**:
+  - `/src/services/ais-stream-backend.ts` (modified - message type filter, error handling, debug logging)
+  - `/src/components/vessels/VesselMap.tsx` (modified - pan to vessel on selection)
+  - `/src/app/(dashboard)/dashboard/tracking-diagnostics/page.tsx` (created - diagnostic tool)
+  - `/.env.local.example` (modified - AIS_TEST_MODE added)
+- **Breaking Changes**: None
+- **Notes**:
+  - **Issue 1: No Position Reports Received**:
+    - **Problem**: AIS backend only received ShipStaticData messages, no PositionReport messages
+    - **Root Cause**: Missing `FilterMessageTypes` in AIS Stream subscription
+    - **Solution**: Added `FilterMessageTypes: ['PositionReport', 'ShipStaticData']` to subscription (line 211)
+    - **Impact**: Position reports now arrive every few seconds
+  - **Issue 2: Silent Async Errors**:
+    - **Problem**: `handlePositionReport()` and `handleStaticData()` errors not being caught
+    - **Root Cause**: Async functions called without await or error handling
+    - **Solution**: Added `.catch()` blocks to both function calls
+    - **Impact**: All errors now logged for debugging
+  - **Issue 3: Vessels Not in Database**:
+    - **Problem**: Position reports received but no "Updated vessel" logs
+    - **Root Cause**: Vessels didn't exist in database yet
+    - **Solution**: Created SQL script to insert 15 demo vessels with live position data
+    - **Impact**: Vessels now visible on map with real-time updates
+  - **Test Mode Implementation**:
+    - Added `AIS_TEST_MODE` environment variable (default: false)
+    - When enabled, subscribes to all vessels in West Africa (25-38°N, -10-20°E) like seaspy
+    - Used for debugging AIS Stream connectivity without requiring specific vessel MMSIs
+    - Test mode logs: `🧪 TEST MODE ENABLED - Receiving ALL vessels in area`
+  - **Debug Logging Added**:
+    - Line 248: Log all received message types with MMSI
+    - Lines 276-281: Log when position data is missing or being processed
+    - Helps diagnose why vessels aren't appearing on map
+  - **Diagnostic Page Created**:
+    - `/dashboard/tracking-diagnostics` - comprehensive troubleshooting tool
+    - Shows: vessel count, vessels with/without position data, system status
+    - Lists common issues and solutions
+    - Provides links to test pages
+  - **Map Interaction Enhancement**:
+    - Added `flyTo()` animation when vessel selected in sidebar
+    - Smooth pan to vessel location with 1.5-second transition
+    - Zooms to level 12 for close-up view
+    - Improves user experience when browsing vessels
+  - **Demo Vessels**:
+    - Created 15 vessels from live AIS Stream data
+    - MMSIs: 219387000, 246773000, 247102170, 224114990, 249000934, 263438000, 431747000, 263434000, 305886000, 311000615, 212115000, 247186300, 248076000, 247100900, 225414000
+    - All linked to user account: 72ec74cc-4a55-4398-b9de-7a43ae69009a
+    - Receiving real-time position updates from AIS Stream
+  - **Key Learnings**:
+    - AIS Stream requires explicit message type filtering
+    - Position reports (Message Types 1-3) more frequent than static data (Message Type 5)
+    - Vessels must exist in database before position updates can be stored
+    - Seaspy subscribes to entire world with no MMSI filters (global tracking)
+  - **Verification**:
+    - ✅ AIS backend receiving both PositionReport and ShipStaticData
+    - ✅ Position data includes valid lat/long coordinates
+    - ✅ 15 vessels visible on map with real-time updates
+    - ✅ Clicking vessel in sidebar pans map to vessel location
+    - ✅ Test mode successfully receives all vessels in area
+
+---
+
+## [2025-12-21] - Phase 7 Tasks 54-58: User-Based Vessel Tracking Complete
+
+### Type: Added
+- **Description**: Implemented user-based vessel tracking system with AIS Stream backend service, real-time position updates, and interactive map interface
+- **Files Modified**:
+  - **Backend Service** (Task 54-57):
+    - `/src/services/ais-stream-backend.ts` (modified - user vessel tracking)
+    - `/src/services/README.md` (created - documentation)
+    - `package.json` (modified - ais:start script)
+    - `/.env.local.example` (modified - AIS Stream config)
+  - **Database** (Migration 6):
+    - `/database_scripts.sql` (modified - user_vessels table added)
+  - **API Routes**:
+    - `/src/app/api/vessels/route.ts` (modified - user filtering)
+    - `/src/app/api/test-db-write/route.ts` (created - test endpoint)
+    - `/src/app/api/test-db-direct/route.ts` (created - test endpoint)
+  - **Test Pages**:
+    - `/src/app/(dashboard)/dashboard/tracking-test/page.tsx` (created)
+    - `/src/app/(dashboard)/dashboard/tracking-mock/page.tsx` (created)
+  - **UI Components** (Task 54-58):
+    - `/src/app/(dashboard)/dashboard/tracking/page.tsx` (created - moved from root)
+    - `/src/components/layout/Sidebar.tsx` (modified - navigation links)
+- **Breaking Changes**:
+  - Vessel tracking changed from geographic bounding boxes to user-specific MMSI filtering
+  - Vessels API now filters by user_vessels relationship (users only see their own vessels)
+- **Notes**:
+  - **Architecture Decision - Backend WebSocket Service**:
+    - Adopted seaspy project architecture (server-side WebSocket instead of browser-based)
+    - Benefits: API key security, single connection for all users, persistent storage, efficient MMSI filtering
+    - Backend runs as separate Node.js process: `pnpm ais:start`
+    - Based on reference: https://github.com/bbailey1024/seaspy.git
+  - **User Vessels Table (Migration 6)**:
+    - Created `user_vessels` join table linking users to vessels they track
+    - Columns: id, user_id (FK to profiles), vessel_id (FK to vessels), added_at, notes
+    - UNIQUE constraint on (user_id, vessel_id) to prevent duplicates
+    - RLS policies: Users can only view their own vessel associations
+    - Indexes on user_id and vessel_id for query performance
+  - **AIS Backend Service Enhancements**:
+    - Loads tracked vessels from user_vessels table on startup
+    - Refreshes vessel list every hour automatically
+    - Filters AIS Stream subscription to only user's MMSIs (FiltersShipMMSI parameter)
+    - Falls back to bounding box subscription if no user vessels exist
+    - Environment variable loading with dotenv for standalone execution
+    - Auto-reconnect with exponential backoff (5s-30s)
+    - Heartbeat every 30 seconds to maintain connection
+    - Graceful shutdown on SIGINT/SIGTERM
+  - **Vessels API User Filtering**:
+    - Updated GET /api/vessels to join with user_vessels table
+    - Added `.eq('user_vessels.user_id', session.user.id)` filter
+    - Users now only see vessels they've explicitly associated with their account
+    - Fixed import errors: Changed from `@supabase/auth-helpers-nextjs` to `@/lib/supabase/server`
+  - **Test Infrastructure**:
+    - `/api/test-db-write` - Tests database write permissions (expects RLS block for non-staff)
+    - `/api/test-db-direct` - Placeholder for direct database queries
+    - `/dashboard/tracking-test` - Direct AIS Stream WebSocket test (browser-based)
+    - `/dashboard/tracking-mock` - Mock tracking with 3 simulated vessels for UI testing
+  - **Environment Variables**:
+    - `AIS_STREAM_API_KEY` - AIS Stream API key (required)
+    - `AIS_STREAM_WS_URL` - WebSocket URL (default: wss://stream.aisstream.io/v0/stream)
+    - `NEXT_PUBLIC_AISSTREAM_API_KEY` - Public API key for browser testing
+  - **Package Scripts**:
+    - `pnpm ais:start` - Start AIS backend service with tsx
+  - **Issues Resolved**:
+    - **Schema Cache Issue (PGRST205)**: Resolved by waiting for Supabase PostgREST cache refresh
+    - **Module Import Errors**: Fixed by updating to `@/lib/supabase/server` pattern
+    - **Environment Variables**: Added dotenv configuration for standalone scripts
+    - **Wrong Configuration**: User corrected Supabase credentials from different project
+    - **WebSocket Strict Mode**: Added `didSubscribe` flag to prevent premature closure in React StrictMode
+  - **User Workflow**:
+    1. User logs into account
+    2. Can track containers linked to vessels (via containers.vessel_id)
+    3. Can track vessels directly (via user_vessels table)
+    4. Only sees vessels associated with their account (not all vessels in database)
+  - **Production Deployment**:
+    - AIS backend should run as long-running background service (PM2, systemd, Docker)
+    - Monitors user_vessels table and automatically tracks new vessels
+    - Stores position updates in vessels and vessel_positions tables
+  - **Phase 7 Progress**: Tasks 54-58 complete (9/14 tasks, 64%)
+    - ✅ Task 49: Mapbox Integration
+    - ✅ Task 50: AIS Stream Integration
+    - ✅ Task 51: Vessel Database Tables
+    - ✅ Task 52: Vessel Tracking API Routes
+    - ✅ Task 53: Vessel React Query Hooks
+    - ✅ Task 54: Build Interactive Map Component
+    - ✅ Task 55: Build Vessel List Sidebar
+    - ✅ Task 56: Build Vessel Detail Panel
+    - ✅ Task 57: Implement Real-time Position Updates
+    - ✅ Task 58: Build Vessel Monitoring Dashboard Page
+    - ⏳ Task 59: Link Containers to Vessels (UI)
+    - ⏳ Task 60: Add Vessel Search Functionality
+    - ⏳ Task 61: Implement Vessel Route Visualization
+    - ⏳ Task 62: Add Geofencing & Alerts
+
+---
+
 ## [2025-12-19] - Phase 7 Tasks 49-53: Vessel Tracking Foundation Complete
 
 ### Type: Added

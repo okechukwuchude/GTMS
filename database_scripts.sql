@@ -3,10 +3,10 @@
 -- ============================================================================
 -- Project: Global Trade Monitoring System (Maritime Container Inspection)
 -- Database: PostgreSQL (Supabase)
--- Last Updated: December 19, 2025
+-- Last Updated: December 21, 2025
 --
 -- INSTRUCTIONS:
--- - Run these migrations in order (Migration 1 → 2 → 3 → 4 → 5)
+-- - Run these migrations in order (Migration 1 → 2 → 3 → 4 → 5 → 6)
 -- - Execute in Supabase SQL Editor
 -- - Test each migration before proceeding to the next
 -- - Rollback scripts provided at the end of each section
@@ -737,6 +737,64 @@ DROP TABLE IF EXISTS vessels CASCADE;
 */
 
 -- ============================================================================
+-- MIGRATION 6: USER VESSELS TABLE (PHASE 7)
+-- ============================================================================
+-- Description: Track which vessels belong to which users
+-- Dependencies: Requires Migration 1 (profiles) and Migration 5 (vessels)
+-- Task Reference: Phase 7 - Vessel Monitoring
+-- ============================================================================
+
+-- Create user_vessels table
+CREATE TABLE user_vessels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  vessel_id UUID NOT NULL REFERENCES vessels(id) ON DELETE CASCADE,
+  added_at TIMESTAMPTZ DEFAULT NOW(),
+  notes TEXT,
+  UNIQUE(user_id, vessel_id)
+);
+
+-- Create indexes for user_vessels
+CREATE INDEX idx_user_vessels_user_id ON user_vessels(user_id);
+CREATE INDEX idx_user_vessels_vessel_id ON user_vessels(vessel_id);
+
+-- Enable Row Level Security
+ALTER TABLE user_vessels ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Users can view their own vessel associations
+CREATE POLICY "Users can view their own vessels"
+  ON user_vessels FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- RLS Policy: Users can add vessels to their account
+CREATE POLICY "Users can add vessels to their account"
+  ON user_vessels FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- RLS Policy: Users can remove vessels from their account
+CREATE POLICY "Users can remove vessels from their account"
+  ON user_vessels FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- RLS Policy: Staff can view all vessel associations
+CREATE POLICY "Staff can view all user vessels"
+  ON user_vessels FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND user_type = 'staff'
+    )
+  );
+
+-- ============================================================================
+-- ROLLBACK MIGRATION 6
+-- ============================================================================
+/*
+-- Drop user_vessels table (CASCADE will drop dependent objects)
+DROP TABLE IF EXISTS user_vessels CASCADE;
+*/
+
+-- ============================================================================
 -- VERIFICATION QUERIES
 -- ============================================================================
 -- Run these queries after migrations to verify everything is set up correctly
@@ -811,6 +869,8 @@ DROP FUNCTION IF EXISTS update_updated_at_column();
 DROP FUNCTION IF EXISTS public.handle_new_user();
 
 -- Drop all tables (CASCADE will drop dependent objects)
+-- Migration 6 tables
+DROP TABLE IF EXISTS user_vessels CASCADE;
 -- Migration 5 tables
 DROP TABLE IF EXISTS container_vessels CASCADE;
 DROP TABLE IF EXISTS vessel_routes CASCADE;

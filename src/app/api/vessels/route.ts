@@ -36,10 +36,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    // Build query (simplified - no joins for now)
+    // Build query - only show user's vessels
     let query = supabase
       .from('vessels')
-      .select('*', { count: 'exact' })
+      .select(`
+        *,
+        user_vessels!inner(user_id)
+      `, { count: 'exact' })
+      .eq('user_vessels.user_id', session.user.id)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
