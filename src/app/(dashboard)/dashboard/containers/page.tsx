@@ -129,16 +129,32 @@ export default function ContainersPage() {
     {
       id: 'track',
       header: 'Track',
-      cell: ({ row }) => (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8"
-          disabled
-        >
-          Track
-        </Button>
-      ),
+      cell: ({ row }) => {
+        const vesselId = row.original.vessel_id
+        return vesselId ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            asChild
+          >
+            <Link href={`/dashboard/tracking?vessel=${vesselId}`}>
+              <Ship className="mr-1 h-3 w-3" />
+              Track
+            </Link>
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            disabled
+            title="No vessel assigned"
+          >
+            Track
+          </Button>
+        )
+      },
     },
     {
       accessorKey: 'bill_of_lading',

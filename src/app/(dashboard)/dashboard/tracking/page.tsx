@@ -5,7 +5,8 @@
  * Real-time vessel monitoring dashboard with interactive map
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { VesselMap, MapControls, VesselListSidebar, VesselDetailPanel } from '@/components/vessels'
 import { useVessels, type Vessel } from '@/lib/hooks/useVessels'
 import { useRealtimeVessels } from '@/lib/hooks/useRealtimeVessels'
@@ -13,6 +14,9 @@ import type { VesselMarkerData, PortMarkerData, RouteData } from '@/lib/mapbox/t
 import { MAPBOX_CONFIG } from '@/lib/mapbox/config'
 
 export default function TrackingPage() {
+  const searchParams = useSearchParams()
+  const vesselIdFromUrl = searchParams.get('vessel')
+
   const [selectedVessel, setSelectedVessel] = useState<Vessel | null>(null)
   const [mapStyle, setMapStyle] = useState<keyof typeof MAPBOX_CONFIG.styles>('streets')
   const [showVessels, setShowVessels] = useState(true)
@@ -25,6 +29,16 @@ export default function TrackingPage() {
 
   // Enable real-time updates (polls every 30 seconds)
   useRealtimeVessels({ enabled: true })
+
+  // Auto-select vessel from URL parameter
+  useEffect(() => {
+    if (vesselIdFromUrl && vessels.length > 0 && !selectedVessel) {
+      const vessel = vessels.find((v) => v.id === vesselIdFromUrl)
+      if (vessel) {
+        setSelectedVessel(vessel)
+      }
+    }
+  }, [vesselIdFromUrl, vessels, selectedVessel])
 
   // Convert vessels to marker data
   const vesselMarkers: VesselMarkerData[] = vessels
