@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('vessels')
       .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
     // Apply filters
