@@ -278,6 +278,11 @@ class AISStreamBackend {
       return
     }
 
+    // Convert timestamp to ISO 8601 format
+    const timestamp = metadata.time_utc
+      ? new Date(metadata.time_utc).toISOString()
+      : new Date().toISOString()
+
     console.log(`[AIS Backend] 📍 Processing position for ${mmsi} at ${lat}, ${lon}`)
 
     try {
@@ -290,7 +295,7 @@ class AISStreamBackend {
 
       if (existingVessel) {
         // Update existing vessel
-        await this.supabase
+        const { data: updateData, error: updateError } = await this.supabase
           .from('vessels')
           .update({
             current_latitude: lat,
@@ -299,13 +304,19 @@ class AISStreamBackend {
             current_course: report.Cog || null,
             current_heading: report.TrueHeading || null,
             navigation_status: report.NavigationalStatus || null,
-            last_position_update: metadata.time_utc || new Date().toISOString(),
+            last_position_update: timestamp,
             ais_data_source: 'aisstream',
           })
           .eq('mmsi', mmsi)
 
+        if (updateError) {
+          console.error(`[AIS Backend] ❌ Failed to update vessel ${mmsi}:`, updateError.message)
+          console.error(`[AIS Backend] Error code: ${updateError.code}, Details:`, updateError.details)
+          return
+        }
+
         // Insert position history
-        await this.supabase.from('vessel_positions').insert({
+        const { error: positionError } = await this.supabase.from('vessel_positions').insert({
           vessel_id: existingVessel.id,
           latitude: lat,
           longitude: lon,
@@ -313,15 +324,20 @@ class AISStreamBackend {
           course_over_ground: report.Cog || null,
           heading: report.TrueHeading || null,
           navigation_status: report.NavigationalStatus || null,
-          timestamp: metadata.time_utc || new Date().toISOString(),
+          timestamp: timestamp,
           data_source: 'aisstream',
           message_type: 'PositionReport',
         })
 
-        console.log(`[AIS Backend] Updated vessel ${mmsi} (${metadata.ShipName || 'Unknown'})`)
+        if (positionError) {
+          console.error(`[AIS Backend] ❌ Failed to insert position history for ${mmsi}:`, positionError.message)
+          console.error(`[AIS Backend] Error code: ${positionError.code}`)
+        }
+
+        console.log(`[AIS Backend] ✅ Updated vessel ${mmsi} (${metadata.ShipName || 'Unknown'})`)
       } else {
         // Create new vessel
-        const { data: newVessel } = await this.supabase
+        const { data: newVessel, error: createError } = await this.supabase
           .from('vessels')
           .insert({
             mmsi,
@@ -332,15 +348,21 @@ class AISStreamBackend {
             current_course: report.Cog || null,
             current_heading: report.TrueHeading || null,
             navigation_status: report.NavigationalStatus || null,
-            last_position_update: metadata.time_utc || new Date().toISOString(),
+            last_position_update: timestamp,
             ais_data_source: 'aisstream',
             status: 'in_transit',
           })
           .select('id')
           .single()
 
+        if (createError) {
+          console.error(`[AIS Backend] ❌ Failed to create vessel ${mmsi}:`, createError.message)
+          console.error(`[AIS Backend] Error code: ${createError.code}, Details:`, createError.details)
+          return
+        }
+
         if (newVessel) {
-          console.log(`[AIS Backend] Created new vessel ${mmsi} (${metadata.ShipName || 'Unknown'})`)
+          console.log(`[AIS Backend] ✅ Created new vessel ${mmsi} (${metadata.ShipName || 'Unknown'})`)
         }
       }
     } catch (error) {
@@ -354,23 +376,55 @@ class AISStreamBackend {
 
     const mmsi = String(metadata.MMSI || staticData.UserID)
 
+    // Convert AIS ETA object to ISO timestamp or null
+    // AIS ETA format: {Month: 1-12, Day: 1-31, Hour: 0-23, Minute: 0-59}
+    // Values of 0/24/60 mean "not available"
+    let eta: string | null = null
+    if (staticData.Eta && typeof staticData.Eta === 'object') {
+      const aisEta = staticData.Eta as any
+      if (aisEta.Month > 0 && aisEta.Day > 0 && aisEta.Hour < 24 && aisEta.Minute < 60) {
+        try {
+          const currentYear = new Date().getFullYear()
+          const etaDate = new Date(
+            currentYear,
+            aisEta.Month - 1,
+            aisEta.Day,
+            aisEta.Hour,
+            aisEta.Minute
+          )
+          eta = etaDate.toISOString()
+        } catch (e) {
+          // Invalid date, leave as null
+        }
+      }
+    }
+
     try {
       // Update or create vessel with static data
-      await this.supabase
+      const { error: upsertError } = await this.supabase
         .from('vessels')
-        .upsert({
-          mmsi,
-          vessel_name: staticData.Name || metadata.ShipName || `Vessel ${mmsi}`,
-          call_sign: staticData.CallSign || null,
-          imo_number: staticData.ImoNumber ? String(staticData.ImoNumber) : null,
-          vessel_type_code: staticData.Type || null,
-          destination_name: staticData.Destination || null,
-          eta: staticData.Eta || null,
-          ais_data_source: 'aisstream',
-          updated_at: new Date().toISOString(),
-        })
+        .upsert(
+          {
+            mmsi,
+            vessel_name: staticData.Name || metadata.ShipName || `Vessel ${mmsi}`,
+            call_sign: staticData.CallSign || null,
+            imo_number: staticData.ImoNumber ? String(staticData.ImoNumber) : null,
+            vessel_type_code: staticData.Type || null,
+            destination_name: staticData.Destination || null,
+            eta: eta,
+            ais_data_source: 'aisstream',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'mmsi' }
+        )
 
-      console.log(`[AIS Backend] Updated static data for ${mmsi} (${staticData.Name || 'Unknown'})`)
+      if (upsertError) {
+        console.error(`[AIS Backend] ❌ Failed to upsert static data for ${mmsi}:`, upsertError.message)
+        console.error(`[AIS Backend] Error code: ${upsertError.code}, Details:`, upsertError.details)
+        return
+      }
+
+      console.log(`[AIS Backend] ✅ Updated static data for ${mmsi} (${staticData.Name || 'Unknown'})`)
     } catch (error) {
       console.error(`[AIS Backend] Error storing static data for ${mmsi}:`, error)
     }
