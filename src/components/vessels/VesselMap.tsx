@@ -177,6 +177,15 @@ export default function VesselMap({
           .setPopup(popup)
           .addTo(currentMap)
 
+        // Hover handlers - show popup on hover
+        el.addEventListener('mouseenter', () => {
+          marker.togglePopup()
+        })
+
+        el.addEventListener('mouseleave', () => {
+          marker.togglePopup()
+        })
+
         // Click handler
         el.addEventListener('click', (e) => {
           e.stopPropagation()
@@ -247,6 +256,15 @@ export default function VesselMap({
           .setLngLat([port.position.lng, port.position.lat])
           .setPopup(popup)
           .addTo(currentMap)
+
+        // Hover handlers - show popup on hover
+        el.addEventListener('mouseenter', () => {
+          marker.togglePopup()
+        })
+
+        el.addEventListener('mouseleave', () => {
+          marker.togglePopup()
+        })
 
         // Click handler
         el.addEventListener('click', (e) => {
