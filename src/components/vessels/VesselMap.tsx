@@ -145,13 +145,26 @@ export default function VesselMap({
       if (existingMarker) {
         // Update existing marker position
         existingMarker.setLngLat([vessel.position.lng, vessel.position.lat])
+
+        // Ensure selection state persists after position update
+        const markerEl = existingMarker.getElement()
+        if (markerEl && vessel.id === selectedVesselId) {
+          markerEl.classList.add('selected')
+        }
       } else {
-        // Create new marker
+        // Create wrapper element
+        const wrapper = document.createElement('div')
+        wrapper.className = 'vessel-marker-wrapper'
+        wrapper.style.cursor = 'pointer'
+
+        // Create pulsing ring element
+        const ring = document.createElement('div')
+        ring.className = 'vessel-marker-ring'
+        wrapper.appendChild(ring)
+
+        // Create vessel marker element
         const el = document.createElement('div')
         el.className = 'vessel-marker'
-        el.style.width = '32px'
-        el.style.height = '32px'
-        el.style.cursor = 'pointer'
         el.style.backgroundSize = 'contain'
         el.style.backgroundRepeat = 'no-repeat'
         el.style.backgroundPosition = 'center'
@@ -165,29 +178,32 @@ export default function VesselMap({
           </svg>
         `
 
+        // Append marker to wrapper
+        wrapper.appendChild(el)
+
         // Create popup
         const popup = new mapboxgl.Popup({
           offset: 16,
           closeButton: false,
         }).setHTML(createVesselPopupHTML(vessel))
 
-        // Create marker
-        const marker = new mapboxgl.Marker({ element: el })
+        // Create marker (use wrapper instead of el)
+        const marker = new mapboxgl.Marker({ element: wrapper })
           .setLngLat([vessel.position.lng, vessel.position.lat])
           .setPopup(popup)
           .addTo(currentMap)
 
-        // Hover handlers - show popup on hover
-        el.addEventListener('mouseenter', () => {
+        // Hover handlers - show popup on hover (attach to wrapper)
+        wrapper.addEventListener('mouseenter', () => {
           marker.togglePopup()
         })
 
-        el.addEventListener('mouseleave', () => {
+        wrapper.addEventListener('mouseleave', () => {
           marker.togglePopup()
         })
 
-        // Click handler
-        el.addEventListener('click', (e) => {
+        // Click handler (attach to wrapper)
+        wrapper.addEventListener('click', (e) => {
           e.stopPropagation()
           onVesselClick?.(vessel)
         })
@@ -196,14 +212,13 @@ export default function VesselMap({
       }
 
       // Highlight selected vessel
-      const markerEl = vesselMarkers.current.get(vessel.id)?.getElement()
+      const marker = vesselMarkers.current.get(vessel.id)
+      const markerEl = marker?.getElement()
       if (markerEl) {
         if (vessel.id === selectedVesselId) {
-          markerEl.style.transform = 'scale(1.3)'
-          markerEl.style.zIndex = '1000'
+          markerEl.classList.add('selected')
         } else {
-          markerEl.style.transform = 'scale(1)'
-          markerEl.style.zIndex = '1'
+          markerEl.classList.remove('selected')
         }
       }
     })
