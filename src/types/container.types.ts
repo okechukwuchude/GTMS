@@ -95,8 +95,8 @@ export interface ContainerFormData {
   hazard_class?: string
 
   // Ports and Schedule
-  origin_port_id?: string
-  destination_port_id?: string
+  origin_port?: string
+  destination_port?: string
   eta?: string
   temperature_celsius?: number
 }
@@ -107,8 +107,8 @@ export interface ContainerFormData {
 export interface ContainerFilters {
   search?: string
   statuses?: ContainerStatus[]
-  originPortId?: string
-  destinationPortId?: string
+  originPort?: string
+  destinationPort?: string
   dateFrom?: string
   dateTo?: string
   riskLevel?: RiskLevel

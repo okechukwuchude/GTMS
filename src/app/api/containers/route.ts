@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || undefined
     const statusParam = searchParams.get('status')
     const statuses = statusParam ? statusParam.split(',') : undefined
-    const originPortId = searchParams.get('origin_port_id') || undefined
-    const destinationPortId = searchParams.get('destination_port_id') || undefined
+    const originPort = searchParams.get('origin_port') || undefined
+    const destinationPort = searchParams.get('destination_port') || undefined
     const dateFrom = searchParams.get('date_from') || undefined
     const dateTo = searchParams.get('date_to') || undefined
 
@@ -47,14 +47,7 @@ export async function GET(request: NextRequest) {
     // Build query
     let query = supabase
       .from('containers')
-      .select(
-        `
-        *,
-        origin_port:origin_port_id(id, name, code, country_code, city),
-        destination_port:destination_port_id(id, name, code, country_code, city)
-      `,
-        { count: 'exact' }
-      )
+      .select('*', { count: 'exact' })
       .eq('owner_id', userId)
 
     // Apply filters
@@ -68,12 +61,12 @@ export async function GET(request: NextRequest) {
       query = query.in('status', statuses)
     }
 
-    if (originPortId) {
-      query = query.eq('origin_port_id', originPortId)
+    if (originPort) {
+      query = query.eq('origin_port', originPort)
     }
 
-    if (destinationPortId) {
-      query = query.eq('destination_port_id', destinationPortId)
+    if (destinationPort) {
+      query = query.eq('destination_port', destinationPort)
     }
 
     if (dateFrom) {
@@ -159,13 +152,7 @@ export async function POST(request: NextRequest) {
     const { data: container, error: createError } = await supabase
       .from('containers')
       .insert(containerData)
-      .select(
-        `
-        *,
-        origin_port:origin_port_id(id, name, code, country_code, city),
-        destination_port:destination_port_id(id, name, code, country_code, city)
-      `
-      )
+      .select('*')
       .single()
 
     if (createError) {

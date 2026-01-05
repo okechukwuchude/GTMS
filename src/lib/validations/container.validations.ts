@@ -108,8 +108,8 @@ export const containerCreateSchema = z
     hazard_class: hazardClassEnum.optional(),
 
     // Ports and Schedule
-    origin_port_id: z.string().uuid('Invalid origin port ID').optional(),
-    destination_port_id: z.string().uuid('Invalid destination port ID').optional(),
+    origin_port: z.string().max(100).optional(),
+    destination_port: z.string().max(100).optional(),
     eta: z.string().datetime().optional(),
     temperature_celsius: z
       .number()
@@ -172,8 +172,8 @@ export const containerUpdateSchema = containerCreateSchema
 export const containerFilterSchema = z.object({
   search: z.string().optional(),
   statuses: z.array(containerStatusEnum).optional(),
-  originPortId: z.string().uuid().optional(),
-  destinationPortId: z.string().uuid().optional(),
+  originPort: z.string().optional(),
+  destinationPort: z.string().optional(),
   dateFrom: z.string().datetime().optional(),
   dateTo: z.string().datetime().optional(),
   riskLevel: z.enum(['low', 'medium', 'high', 'critical']).optional(),

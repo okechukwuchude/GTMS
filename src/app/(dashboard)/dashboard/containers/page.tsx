@@ -168,18 +168,12 @@ export default function ContainersPage() {
     {
       accessorKey: 'origin_port',
       header: 'Origin Port',
-      cell: ({ row }) =>
-        row.original.origin_port
-          ? `${row.original.origin_port.name} (${row.original.origin_port.code})`
-          : '-',
+      cell: ({ row }) => row.original.origin_port || '-',
     },
     {
       accessorKey: 'destination_port',
       header: 'Destination Port',
-      cell: ({ row }) =>
-        row.original.destination_port
-          ? `${row.original.destination_port.name} (${row.original.destination_port.code})`
-          : '-',
+      cell: ({ row }) => row.original.destination_port || '-',
     },
     {
       accessorKey: 'registration_date',

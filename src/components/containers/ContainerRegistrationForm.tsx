@@ -2,7 +2,7 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -25,7 +25,6 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { containerCreateSchema, ContainerCreateInput } from '@/lib/validations/container.validations'
-import { usePorts } from '@/lib/hooks/usePorts'
 import { useCreateContainer, useUpdateContainer } from '@/lib/hooks/useContainers'
 import { Container } from '@/types/container.types'
 import { OCRResult } from '@/lib/ocr/types'
@@ -70,7 +69,6 @@ export default function ContainerRegistrationForm({
   onSuccess,
   onCancel,
 }: ContainerRegistrationFormProps) {
-  const { data: ports, isLoading: portsLoading } = usePorts()
   const createContainer = useCreateContainer()
   const updateContainer = useUpdateContainer()
 
@@ -88,24 +86,6 @@ export default function ContainerRegistrationForm({
     return field?.confidence
   }
 
-  // Helper function to render field label with confidence indicator
-  const renderFieldLabel = (label: string, fieldName: string) => {
-    const confidence = getOCRConfidence(fieldName)
-    const hasOCRData = confidence !== undefined
-
-    return (
-      <div className="flex items-center">
-        <span>{label}</span>
-        {hasOCRData && (
-          <FieldConfidenceIndicator
-            confidence={confidence}
-            fieldName={label}
-            isOCRExtracted={true}
-          />
-        )}
-      </div>
-    )
-  }
 
   const form = useForm<any>({
     resolver: zodResolver(containerCreateSchema) as any,
@@ -131,8 +111,8 @@ export default function ContainerRegistrationForm({
       currency: container?.currency || getOCRValue('currency') || 'USD',
       is_hazardous: container?.is_hazardous || getOCRValue('is_hazardous') || false,
       hazard_class: (container?.hazard_class as any) || getOCRValue('hazard_class') || undefined,
-      origin_port_id: container?.origin_port_id || getOCRValue('origin_port_id') || undefined,
-      destination_port_id: container?.destination_port_id || getOCRValue('destination_port_id') || undefined,
+      origin_port: container?.origin_port || getOCRValue('origin_port') || undefined,
+      destination_port: container?.destination_port || getOCRValue('destination_port') || undefined,
       eta: container?.eta || getOCRValue('eta') || undefined,
       temperature_celsius: container?.temperature_celsius || getOCRValue('temperature_celsius') || undefined,
     },
@@ -662,60 +642,70 @@ export default function ContainerRegistrationForm({
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
-              name="origin_port_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Origin Port</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={portsLoading}
-                  >
+              name="origin_port"
+              render={({ field }) => {
+                // Check if OCR extracted to show confidence indicator
+                const isOCRExtracted = ocrData?.fields?.origin_port !== undefined
+
+                return (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      Origin Port
+                      {isOCRExtracted && ocrData?.fields?.origin_port && (
+                        <FieldConfidenceIndicator
+                          fieldName="Origin Port"
+                          confidence={ocrData.fields.origin_port.confidence}
+                          isOCRExtracted={true}
+                        />
+                      )}
+                    </FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select origin port" />
-                      </SelectTrigger>
+                      <Input
+                        placeholder="Enter port name or code (e.g., NGLOS, Lagos)"
+                        {...field}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {ports?.map((port) => (
-                        <SelectItem key={port.id} value={port.id}>
-                          {port.name} ({port.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+                    <FormDescription>
+                      Enter port name or UN/LOCODE
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
             />
 
             <FormField
               control={form.control}
-              name="destination_port_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Destination Port</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={portsLoading}
-                  >
+              name="destination_port"
+              render={({ field }) => {
+                // Check if OCR extracted to show confidence indicator
+                const isOCRExtracted = ocrData?.fields?.destination_port !== undefined
+
+                return (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      Destination Port
+                      {isOCRExtracted && ocrData?.fields?.destination_port && (
+                        <FieldConfidenceIndicator
+                          fieldName="Destination Port"
+                          confidence={ocrData.fields.destination_port.confidence}
+                          isOCRExtracted={true}
+                        />
+                      )}
+                    </FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select destination port" />
-                      </SelectTrigger>
+                      <Input
+                        placeholder="Enter port name or code (e.g., USNYC, New York)"
+                        {...field}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {ports?.map((port) => (
-                        <SelectItem key={port.id} value={port.id}>
-                          {port.name} ({port.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+                    <FormDescription>
+                      Enter port name or UN/LOCODE
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
             />
 
             <FormField

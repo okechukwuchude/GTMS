@@ -10,7 +10,6 @@ import { getDocument, deleteDocument } from '@/lib/utils/document-storage'
 import { detectTextFromBuffer } from '@/lib/ocr/vision-client'
 import { extractAllFields } from '@/lib/ocr/field-extractors'
 import { calculateOverallConfidence } from '@/lib/ocr/confidence-calculator'
-import { lookupPortByCode } from '@/lib/ocr/port-lookup'
 import { OCRResult } from '@/lib/ocr/types'
 
 export const dynamic = 'force-dynamic'
@@ -100,38 +99,7 @@ export async function POST(request: NextRequest) {
       visionResponse.confidence
     )
 
-    // Lookup port IDs from port codes
-    if (extractedFields.origin_port_id?.value) {
-      const portLookup = await lookupPortByCode(
-        extractedFields.origin_port_id.value as string
-      )
-      if (portLookup) {
-        extractedFields.origin_port_id = {
-          ...extractedFields.origin_port_id,
-          value: portLookup.portId, // Replace code with UUID
-          confidence: Math.min(
-            extractedFields.origin_port_id.confidence,
-            portLookup.confidence
-          ),
-        }
-      }
-    }
-
-    if (extractedFields.destination_port_id?.value) {
-      const portLookup = await lookupPortByCode(
-        extractedFields.destination_port_id.value as string
-      )
-      if (portLookup) {
-        extractedFields.destination_port_id = {
-          ...extractedFields.destination_port_id,
-          value: portLookup.portId, // Replace code with UUID
-          confidence: Math.min(
-            extractedFields.destination_port_id.confidence,
-            portLookup.confidence
-          ),
-        }
-      }
-    }
+    // Port codes are kept as-is (no UUID conversion needed)
 
     // Calculate overall confidence
     const overallConfidence = calculateOverallConfidence(extractedFields)

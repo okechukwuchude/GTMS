@@ -50,8 +50,8 @@ export interface OCRResult {
     hazard_class?: OCRField
 
     // Ports & Schedule
-    origin_port_id?: OCRField
-    destination_port_id?: OCRField
+    origin_port?: OCRField
+    destination_port?: OCRField
     eta?: OCRField
     temperature_celsius?: OCRField
   }

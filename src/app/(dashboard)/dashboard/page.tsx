@@ -146,14 +146,10 @@ export default function DashboardPage() {
                         <StatusBadge status={container.status} size="sm" />
                       </TableCell>
                       <TableCell>
-                        {container.origin_port
-                          ? `${container.origin_port.name} (${container.origin_port.code})`
-                          : '-'}
+                        {container.origin_port || '-'}
                       </TableCell>
                       <TableCell>
-                        {container.destination_port
-                          ? `${container.destination_port.name} (${container.destination_port.code})`
-                          : '-'}
+                        {container.destination_port || '-'}
                       </TableCell>
                       <TableCell>
                         {container.registration_date

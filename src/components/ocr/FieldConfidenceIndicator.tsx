@@ -3,6 +3,7 @@
  * Display confidence badge next to form field labels
  */
 
+import { forwardRef } from 'react'
 import { CheckCircle2, AlertTriangle, Info } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -36,12 +37,10 @@ function getConfidenceTier(
 /**
  * Field Confidence Indicator Component
  */
-export function FieldConfidenceIndicator({
-  confidence,
-  fieldName,
-  isOCRExtracted = true,
-  className,
-}: FieldConfidenceIndicatorProps) {
+export const FieldConfidenceIndicator = forwardRef<
+  HTMLDivElement,
+  FieldConfidenceIndicatorProps
+>(({ confidence, fieldName, isOCRExtracted = true, className }, ref) => {
   if (!isOCRExtracted) {
     return null
   }
@@ -86,6 +85,7 @@ export function FieldConfidenceIndicator({
       <Tooltip>
         <TooltipTrigger asChild>
           <Badge
+            ref={ref}
             variant="outline"
             className={cn(
               'ml-2 h-5 px-1.5 text-xs',
@@ -110,18 +110,20 @@ export function FieldConfidenceIndicator({
       </Tooltip>
     </TooltipProvider>
   )
-}
+})
+
+FieldConfidenceIndicator.displayName = 'FieldConfidenceIndicator'
 
 /**
  * Compact version for inline use
  */
-export function FieldConfidenceIcon({
-  confidence,
-  className,
-}: {
-  confidence: number
-  className?: string
-}) {
+export const FieldConfidenceIcon = forwardRef<
+  HTMLSpanElement,
+  {
+    confidence: number
+    className?: string
+  }
+>(({ confidence, className }, ref) => {
   const tier = getConfidenceTier(confidence)
 
   const config = {
@@ -149,7 +151,7 @@ export function FieldConfidenceIcon({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className={cn('inline-flex', className)}>
+          <span ref={ref} className={cn('inline-flex', className)}>
             <Icon className={cn('h-4 w-4', color)} />
           </span>
         </TooltipTrigger>
@@ -159,4 +161,6 @@ export function FieldConfidenceIcon({
       </Tooltip>
     </TooltipProvider>
   )
-}
+})
+
+FieldConfidenceIcon.displayName = 'FieldConfidenceIcon'

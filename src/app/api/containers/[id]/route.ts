@@ -39,8 +39,6 @@ export async function GET(
       .select(
         `
         *,
-        origin_port:origin_port_id(id, name, code, country_code, city),
-        destination_port:destination_port_id(id, name, code, country_code, city),
         owner:owner_id(id, email, full_name, user_type)
       `
       )
@@ -131,13 +129,7 @@ export async function PATCH(
       .update(updateData)
       .eq('id', id)
       .eq('owner_id', userId)
-      .select(
-        `
-        *,
-        origin_port:origin_port_id(id, name, code, country_code, city),
-        destination_port:destination_port_id(id, name, code, country_code, city)
-      `
-      )
+      .select('*')
       .single()
 
     if (updateError) {

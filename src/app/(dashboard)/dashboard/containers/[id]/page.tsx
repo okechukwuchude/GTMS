@@ -172,18 +172,14 @@ export default function ContainerDetailPage() {
                 <div>
                   <p className="text-sm text-gray-600">Origin Port</p>
                   <p className="font-medium">
-                    {container.origin_port
-                      ? `${container.origin_port.name} (${container.origin_port.code})`
-                      : '-'}
+                    {container.origin_port || '-'}
                   </p>
                 </div>
                 <Separator />
                 <div>
                   <p className="text-sm text-gray-600">Destination Port</p>
                   <p className="font-medium">
-                    {container.destination_port
-                      ? `${container.destination_port.name} (${container.destination_port.code})`
-                      : '-'}
+                    {container.destination_port || '-'}
                   </p>
                 </div>
                 <Separator />

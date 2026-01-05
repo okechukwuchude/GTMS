@@ -568,8 +568,8 @@ export function extractAllFields(text: string, visionConfidence: number = 0) {
     hazard_class: null, // TODO: Extract IMO class if hazardous
 
     // Ports & Schedule (4 fields)
-    origin_port_id: ports.origin,
-    destination_port_id: ports.destination,
+    origin_port: ports.origin,
+    destination_port: ports.destination,
     eta: dates.eta,
     temperature_celsius: extractTemperature(text),
   }
