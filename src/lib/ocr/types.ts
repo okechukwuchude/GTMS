@@ -49,6 +49,10 @@ export interface OCRResult {
     is_hazardous?: OCRField
     hazard_class?: OCRField
 
+    // Vessel Information
+    vessel_name?: OCRField
+    vessel_mmsi?: OCRField
+
     // Ports & Schedule
     origin_port?: OCRField
     destination_port?: OCRField

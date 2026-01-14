@@ -60,13 +60,52 @@ function extractAfterKeyword(
  * ISO 6346 format: 4 letters + 7 digits (e.g., MSCU1234567)
  */
 export function extractContainerNumber(text: string): OCRField | null {
-  // Pattern: 4 uppercase letters + 7 digits
-  const pattern = /\b([A-Z]{4})\s*(\d{7})\b/g
-  const matches = Array.from(text.matchAll(pattern))
+  // Convert to uppercase for case-insensitive matching
+  const upperText = text.toUpperCase()
+
+  // Pattern 1: Standard format - 4 letters + 7 digits (strict)
+  const strictPattern = /\b([A-Z]{4})\s*(\d{7})\b/g
+  let matches = Array.from(upperText.matchAll(strictPattern))
 
   if (matches.length > 0) {
     const containerNumber = matches[0][1] + matches[0][2]
     return createOCRField(containerNumber, 90) // High confidence for structured format
+  }
+
+  // Pattern 2: With separators - 4 letters + separator + 7 digits
+  const separatorPattern = /\b([A-Z]{4})[\s\-_]*(\d{7})\b/g
+  matches = Array.from(upperText.matchAll(separatorPattern))
+
+  if (matches.length > 0) {
+    const containerNumber = matches[0][1] + matches[0][2]
+    return createOCRField(containerNumber, 85) // Slightly lower confidence with separators
+  }
+
+  // Pattern 3: After keywords
+  const keywords = ['Container No', 'Container Number', 'CNTR', 'Container #', 'CONT NO']
+  for (const keyword of keywords) {
+    const keywordIndex = upperText.indexOf(keyword.toUpperCase())
+    if (keywordIndex !== -1) {
+      // Look for container number in the next 50 characters after the keyword
+      const textAfterKeyword = upperText.substring(keywordIndex + keyword.length, keywordIndex + keyword.length + 50)
+      const keywordPattern = /([A-Z]{4})[\s\-_:]*(\d{7})/
+      const match = textAfterKeyword.match(keywordPattern)
+
+      if (match) {
+        const containerNumber = match[1] + match[2]
+        return createOCRField(containerNumber, 80) // Lower confidence for keyword extraction
+      }
+    }
+  }
+
+  // Pattern 4: Anywhere in text (last resort) - might catch false positives
+  const loosePattern = /([A-Z]{4})[\s\-_]*(\d{6,7})/g
+  matches = Array.from(upperText.matchAll(loosePattern))
+
+  if (matches.length > 0) {
+    // Validate that the letters look like container owner codes (common prefixes)
+    const containerNumber = matches[0][1] + matches[0][2].padStart(7, '0')
+    return createOCRField(containerNumber, 60) // Low confidence for loose pattern
   }
 
   return null
@@ -338,6 +377,7 @@ export function extractPorts(
     'POL',
     'Origin Port',
     'Loading Port',
+    'Place of Receipt',
     'From:',
   ]
 
@@ -347,32 +387,47 @@ export function extractPorts(
     'POD',
     'Destination Port',
     'Discharge Port',
+    'Final Destination',
     'To:',
   ]
 
   // Extract origin port
-  const originExtracted = extractAfterKeyword(text, originKeywords, 50)
+  const originExtracted = extractAfterKeyword(text, originKeywords, 100)
   if (originExtracted) {
-    // Look for port code pattern (e.g., USNYC, SGSIN)
-    const portCodeMatch = originExtracted.match(/\b([A-Z]{2}[A-Z]{3})\b/)
+    // Look for UN/LOCODE format (e.g., USNYC, SGSIN, NGLOS)
+    const portCodeMatch = originExtracted.match(/\b([A-Z]{2}[A-Z]{3,5})\b/)
     if (portCodeMatch) {
-      result.origin = createOCRField(portCodeMatch[1], 75)
+      result.origin = createOCRField(portCodeMatch[1], 85)
     } else {
-      // Just use the extracted text (port name)
-      result.origin = createOCRField(originExtracted.split(',')[0].trim(), 60)
+      // Extract port name - take first line, clean up extra info
+      const portName = originExtracted
+        .split(/[\n\r]/)[0]
+        .split(/[,\(]/)[0]
+        .trim()
+
+      if (portName && portName.length > 2 && portName.length < 100) {
+        result.origin = createOCRField(portName, 70)
+      }
     }
   }
 
   // Extract destination port
-  const destExtracted = extractAfterKeyword(text, destKeywords, 50)
+  const destExtracted = extractAfterKeyword(text, destKeywords, 100)
   if (destExtracted) {
-    // Look for port code pattern
-    const portCodeMatch = destExtracted.match(/\b([A-Z]{2}[A-Z]{3})\b/)
+    // Look for UN/LOCODE format
+    const portCodeMatch = destExtracted.match(/\b([A-Z]{2}[A-Z]{3,5})\b/)
     if (portCodeMatch) {
-      result.destination = createOCRField(portCodeMatch[1], 75)
+      result.destination = createOCRField(portCodeMatch[1], 85)
     } else {
-      // Just use the extracted text (port name)
-      result.destination = createOCRField(destExtracted.split(',')[0].trim(), 60)
+      // Extract port name - take first line, clean up extra info
+      const portName = destExtracted
+        .split(/[\n\r]/)[0]
+        .split(/[,\(]/)[0]
+        .trim()
+
+      if (portName && portName.length > 2 && portName.length < 100) {
+        result.destination = createOCRField(portName, 70)
+      }
     }
   }
 
@@ -485,6 +540,52 @@ export function extractSealNumber(text: string): OCRField | null {
 }
 
 /**
+ * Extract vessel name from text
+ */
+export function extractVesselName(text: string): OCRField | null {
+  const keywords = ['Vessel', 'Vessel Name', 'Ship Name', 'V/V', 'V.V.', 'MV ', 'M/V ']
+
+  const extracted = extractAfterKeyword(text, keywords, 100)
+
+  if (extracted) {
+    // Clean up: remove "MV" or "M/V" prefix if present
+    const cleaned = extracted
+      .replace(/^(MV|M\/V|V\/V)\s*/i, '')
+      .split(/[\n,]/)[0]
+      .trim()
+    return createOCRField(cleaned, 80)
+  }
+
+  return null
+}
+
+/**
+ * Extract vessel MMSI from text
+ */
+export function extractVesselMMSI(text: string): OCRField | null {
+  const keywords = ['MMSI', 'IMO', 'Call Sign']
+
+  // MMSI is 9 digits
+  const mmsiPattern = /\b(\d{9})\b/
+  const match = text.match(mmsiPattern)
+
+  if (match) {
+    return createOCRField(match[1], 85)
+  }
+
+  // Try extracting after keywords
+  const extracted = extractAfterKeyword(text, keywords, 30)
+  if (extracted) {
+    const numberMatch = extracted.match(/\b(\d{9})\b/)
+    if (numberMatch) {
+      return createOCRField(numberMatch[1], 75)
+    }
+  }
+
+  return null
+}
+
+/**
  * Extract container type from text
  */
 export function extractContainerType(text: string): OCRField | null {
@@ -566,6 +667,10 @@ export function extractAllFields(text: string, visionConfidence: number = 0) {
     currency: null, // TODO: Extract currency code
     is_hazardous: extractHazardousIndicator(text),
     hazard_class: null, // TODO: Extract IMO class if hazardous
+
+    // Vessel Information (2 fields)
+    vessel_name: extractVesselName(text),
+    vessel_mmsi: extractVesselMMSI(text),
 
     // Ports & Schedule (4 fields)
     origin_port: ports.origin,

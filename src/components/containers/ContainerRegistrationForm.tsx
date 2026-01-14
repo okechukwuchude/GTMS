@@ -111,6 +111,8 @@ export default function ContainerRegistrationForm({
       currency: container?.currency || getOCRValue('currency') || 'USD',
       is_hazardous: container?.is_hazardous || getOCRValue('is_hazardous') || false,
       hazard_class: (container?.hazard_class as any) || getOCRValue('hazard_class') || undefined,
+      vessel_name: container?.vessel_name || getOCRValue('vessel_name') || undefined,
+      vessel_mmsi: container?.vessel_mmsi || getOCRValue('vessel_mmsi') || undefined,
       origin_port: container?.origin_port || getOCRValue('origin_port') || undefined,
       destination_port: container?.destination_port || getOCRValue('destination_port') || undefined,
       eta: container?.eta || getOCRValue('eta') || undefined,
@@ -628,7 +630,88 @@ export default function ContainerRegistrationForm({
 
         <Separator />
 
-        {/* Section 5: Ports & Schedule */}
+        {/* Section 5: Vessel Information */}
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Vessel Information</h3>
+            <p className="text-sm text-gray-600">
+              Information about the vessel transporting this container
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="vessel_name"
+              render={({ field }) => {
+                const isOCRExtracted = ocrData?.fields?.vessel_name !== undefined
+
+                return (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      Vessel Name
+                      {isOCRExtracted && ocrData?.fields?.vessel_name && (
+                        <FieldConfidenceIndicator
+                          fieldName="Vessel Name"
+                          confidence={ocrData.fields.vessel_name.confidence}
+                          isOCRExtracted={true}
+                        />
+                      )}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter vessel name (e.g., MV MAERSK ESSEX)"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Name of the vessel carrying this container
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
+
+            <FormField
+              control={form.control}
+              name="vessel_mmsi"
+              render={({ field }) => {
+                const isOCRExtracted = ocrData?.fields?.vessel_mmsi !== undefined
+
+                return (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      Vessel MMSI
+                      {isOCRExtracted && ocrData?.fields?.vessel_mmsi && (
+                        <FieldConfidenceIndicator
+                          fieldName="Vessel MMSI"
+                          confidence={ocrData.fields.vessel_mmsi.confidence}
+                          isOCRExtracted={true}
+                        />
+                      )}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter 9-digit MMSI number"
+                        {...field}
+                        maxLength={20}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Maritime Mobile Service Identity number
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Section 6: Ports & Schedule */}
         <div className="space-y-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">

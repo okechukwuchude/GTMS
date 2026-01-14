@@ -94,6 +94,10 @@ export interface ContainerFormData {
   is_hazardous: boolean
   hazard_class?: string
 
+  // Vessel Information
+  vessel_name?: string
+  vessel_mmsi?: string
+
   // Ports and Schedule
   origin_port?: string
   destination_port?: string

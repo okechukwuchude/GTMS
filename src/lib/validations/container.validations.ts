@@ -107,6 +107,10 @@ export const containerCreateSchema = z
     is_hazardous: z.boolean().default(false),
     hazard_class: hazardClassEnum.optional(),
 
+    // Vessel Information
+    vessel_name: z.string().max(255).optional(),
+    vessel_mmsi: z.string().max(20).optional(),
+
     // Ports and Schedule
     origin_port: z.string().max(100).optional(),
     destination_port: z.string().max(100).optional(),
