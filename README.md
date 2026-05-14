@@ -16,24 +16,9 @@
 
 ## Demo
 
-<video src="docs/assets/GTMS.mp4" controls width="100%">
-  <a href="docs/assets/GTMS.mp4">Watch demo video</a>
+<video src="docs/assets/demo.webm" controls width="100%">
+  <a href="docs/assets/demo.webm">Watch demo video</a>
 </video>
-
----
-
-## Screenshots
-
-<table>
-  <tr>
-    <td><img src="docs/assets/GTMS1.png" alt="Vessel Tracking Dashboard" width="100%"/></td>
-    <td><img src="docs/assets/GTMS2.png" alt="Container Management" width="100%"/></td>
-  </tr>
-  <tr>
-    <td align="center"><em>Live vessel tracking map</em></td>
-    <td align="center"><em>Container management dashboard</em></td>
-  </tr>
-</table>
 
 ---
 
