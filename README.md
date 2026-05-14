@@ -16,8 +16,8 @@
 
 ## Demo
 
-<video src="docs/assets/demo.webm" controls width="100%">
-  <a href="docs/assets/demo.webm">Watch demo video</a>
+<video src="docs/assets/demo.mp4" controls width="100%">
+  <a href="docs/assets/demo.mp4">Watch demo video</a>
 </video>
 
 ---
